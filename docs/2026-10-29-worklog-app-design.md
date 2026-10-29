@@ -38,6 +38,7 @@ work-log/
 ├── skill/work-log/         SKILL.md, scripts/, tests/
 ├── fixtures/               sample settings.json, suggestions.json, runs.jsonl
 ├── install.sh              build app, install to ~/Applications, link skill
+├── bootstrap.sh            clone or update into ~/.local/share/work-log, then run install.sh
 └── docs/                   this design
 ```
 

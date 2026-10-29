@@ -34,10 +34,14 @@ The repo has two parts:
 ## Install
 
 ```sh
-git clone https://github.com/jo-minjun/work-log.git
-cd work-log
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.sh | zsh
 ```
+
+`bootstrap.sh` clones the repo into `~/.local/share/work-log` and runs `install.sh` from there. If that folder is already a clone of the repo, it pulls the latest `main` first (fast-forward only). It stops before cloning if the Command Line Tools are missing, and it changes nothing if the folder holds something else. Set `WORKLOG_INSTALL_DIR` to use another folder. To pass `install.sh` options, run `curl -fsSL https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.sh | zsh -s -- --no-open`.
+
+To read the script before it runs, download it first (`curl -fsSLO https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.sh`), then run `zsh bootstrap.sh`.
+
+If you already have a clone, run `./install.sh` in it instead.
 
 `install.sh` does the following:
 
@@ -58,9 +62,9 @@ Options:
 | `--prefix DIR` | Install the app into `DIR` instead of `~/Applications` |
 | `--no-open` | Do not open the app after installing |
 
-Re-running `install.sh` upgrades in place. If WorkLog is running, the installer asks it to quit. If a collection is in progress, the installer stops and changes nothing. Re-run it after you move `python3`, `claude` or `codex`.
+To upgrade, run the same install command again, or `./install.sh` in your clone. Re-running `install.sh` upgrades in place. If WorkLog is running, the installer asks it to quit. If a collection is in progress, the installer stops and changes nothing. Re-run it after you move `python3`, `claude` or `codex`.
 
-Keep the repo where it is: the app runs the skill from the clone. The skill path must not contain spaces when you use Claude.
+Keep the clone where it is (`~/.local/share/work-log`, or your own clone): the app runs the skill from it. The skill path must not contain spaces when you use Claude.
 
 ## First run
 
@@ -181,6 +185,8 @@ Both WorkLog folders are owner-only (0700) and their files are 0600. The per-run
 | `WORKLOG_LOG_DIR` | Replaces the logs folder |
 | `WORKLOG_EXTRA_PATH` | Folders put in front of the default run PATH. `install.sh` writes it into the app's Info.plist (`WorkLogExtraPath`) |
 | `WORKLOG_PATH` | Replaces the run PATH entirely. Meant for tests |
+| `WORKLOG_INSTALL_DIR` | Folder `bootstrap.sh` clones into (default `~/.local/share/work-log`) |
+| `WORKLOG_REPO_URL` | Repo `bootstrap.sh` clones (default `https://github.com/jo-minjun/work-log.git`). Meant for forks and tests |
 
 The default run PATH is `~/.local/share/mise/shims:~/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`. The app, `run.sh` and the Python scripts all read `WORKLOG_HOME` and `WORKLOG_LOG_DIR`. They are mainly for development and tests, so that no test touches real data.
 

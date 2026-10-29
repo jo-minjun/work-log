@@ -38,10 +38,14 @@ work-log는 매일 한 일을 기록합니다. 헤드리스 코딩 에이전트(
 ## 설치
 
 ```sh
-git clone https://github.com/jo-minjun/work-log.git
-cd work-log
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.sh | zsh
 ```
+
+`bootstrap.sh`는 저장소를 `~/.local/share/work-log`에 클론하고, 그 안의 `install.sh`를 실행합니다. 그 폴더가 이미 이 저장소의 클론이면, 먼저 최신 `main`을 받습니다(fast-forward만 합니다). Command Line Tools가 없으면 클론하기 전에 멈춥니다. 그 폴더에 다른 것이 있으면 아무것도 바꾸지 않습니다. 다른 폴더를 쓰려면 `WORKLOG_INSTALL_DIR`을 지정하세요. `install.sh` 옵션을 넘기려면 `curl -fsSL https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.sh | zsh -s -- --no-open`처럼 실행하세요.
+
+실행하기 전에 스크립트를 읽어 보려면, 먼저 내려받고(`curl -fsSLO https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.sh`) `zsh bootstrap.sh`로 실행하세요.
+
+이미 클론한 저장소가 있으면, 그 안에서 `./install.sh`를 실행해도 됩니다.
 
 `install.sh`는 다음 일을 합니다.
 
@@ -62,9 +66,9 @@ cd work-log
 | `--prefix DIR` | 앱을 `~/Applications` 대신 `DIR`에 설치합니다 |
 | `--no-open` | 설치한 뒤 앱을 열지 않습니다 |
 
-`install.sh`를 다시 실행하면 그 자리에서 업그레이드합니다. WorkLog가 실행 중이면 설치 스크립트가 앱에 종료를 요청합니다. 수집이 진행 중이면 아무것도 바꾸지 않고 멈춥니다. `python3`, `claude`, `codex`의 위치를 옮겼다면 다시 실행하세요.
+업그레이드하려면 같은 설치 명령을 다시 실행하거나, 클론한 저장소에서 `./install.sh`를 실행하세요. `install.sh`를 다시 실행하면 그 자리에서 업그레이드합니다. WorkLog가 실행 중이면 설치 스크립트가 앱에 종료를 요청합니다. 수집이 진행 중이면 아무것도 바꾸지 않고 멈춥니다. `python3`, `claude`, `codex`의 위치를 옮겼다면 다시 실행하세요.
 
-저장소를 클론한 위치에 그대로 두세요. 앱은 클론한 저장소에서 스킬을 실행합니다. Claude를 쓸 때는 스킬 경로에 공백이 있으면 안 됩니다.
+클론한 폴더(`~/.local/share/work-log` 또는 직접 클론한 폴더)를 그 자리에 그대로 두세요. 앱은 그 폴더에서 스킬을 실행합니다. Claude를 쓸 때는 스킬 경로에 공백이 있으면 안 됩니다.
 
 ## 첫 실행
 
@@ -190,6 +194,8 @@ WorkLog의 두 폴더는 소유자만 접근할 수 있고(0700), 그 안의 파
 | `WORKLOG_LOG_DIR` | 로그 폴더를 바꿉니다 |
 | `WORKLOG_EXTRA_PATH` | 기본 실행 PATH 앞에 폴더를 추가합니다. `install.sh`가 앱의 Info.plist(`WorkLogExtraPath`)에 씁니다 |
 | `WORKLOG_PATH` | 실행 PATH 전체를 바꿉니다. 테스트용입니다 |
+| `WORKLOG_INSTALL_DIR` | `bootstrap.sh`가 클론할 폴더를 바꿉니다(기본값 `~/.local/share/work-log`) |
+| `WORKLOG_REPO_URL` | `bootstrap.sh`가 클론할 저장소를 바꿉니다(기본값 `https://github.com/jo-minjun/work-log.git`). 포크와 테스트용입니다 |
 
 기본 실행 PATH는 `~/.local/share/mise/shims:~/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`입니다. 앱, `run.sh`, Python 스크립트는 모두 `WORKLOG_HOME`과 `WORKLOG_LOG_DIR`을 읽습니다. 주로 개발과 테스트에서, 테스트가 실제 데이터를 건드리지 않게 하려고 씁니다.
 
