@@ -1,5 +1,7 @@
 # work-log
 
+English | [한국어](README.ko.md)
+
 work-log records what you worked on each day. A headless coding agent (Claude Code or Codex) runs the `work-log` skill on a schedule. The skill collects:
 
 - your Claude Code sessions
@@ -24,7 +26,7 @@ The repo has two parts:
 ## Install
 
 ```sh
-git clone https://github.com/<your-github-user>/work-log.git
+git clone https://github.com/jo-minjun/work-log.git
 cd work-log
 ./install.sh
 ```
