@@ -1,0 +1,8 @@
+{"type":"thread.started","thread_id":"00000000-0000-4000-8000-000000000002"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"reasoning","text":"Collecting sessions"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"python3 extract_sessions.py","aggregated_output":"","exit_code":0,"status":"completed"}}
+{"type":"turn.completed","usage":{"input_tokens":24763,"cached_input_tokens":24448,"output_tokens":122}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"Wrote 2 days to the monthly log."}}
+{"type":"turn.completed","usage":{"input_tokens":30100,"cached_input_tokens":29000,"output_tokens":478}}

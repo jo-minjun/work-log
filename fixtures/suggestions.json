@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "suggestions": [
+    {
+      "id": "fx-pending-1",
+      "type": "new_project",
+      "name": "Work automation",
+      "description": "Scripts and tooling for automating daily work",
+      "evidence": [
+        {"date": "2026-10-22", "source": "Claude session", "line": "Wrote a cron wrapper"},
+        {"date": "2026-10-23", "source": "Claude session", "line": "Added a launchd plist"},
+        {"date": "2026-10-23", "source": "Slack", "line": "Discussed automation scope"}
+      ],
+      "status": "pending",
+      "neverSuggest": false,
+      "createdAt": "2026-10-24T10:00:00+09:00",
+      "updatedAt": "2026-10-24T10:00:00+09:00",
+      "pendingAnswer": null,
+      "history": []
+    },
+    {
+      "id": "fx-answered-1",
+      "type": "new_project",
+      "name": "Docs cleanup",
+      "description": "Reorganize the team docs",
+      "evidence": [
+        {"date": "2026-10-20", "source": "Claude session", "line": "Moved pages"},
+        {"date": "2026-10-21", "source": "Claude session", "line": "Fixed links"},
+        {"date": "2026-10-21", "source": "Slack", "line": "Asked for review"}
+      ],
+      "status": "answered",
+      "neverSuggest": false,
+      "createdAt": "2026-10-22T10:00:00+09:00",
+      "updatedAt": "2026-10-22T10:00:00+09:00",
+      "pendingAnswer": {"answer": "accept", "answeredAt": "2026-10-25T09:00:00+09:00", "description": "Reorganize the docs"},
+      "history": []
+    },
+    {
+      "id": "fx-rejected-1",
+      "type": "new_project",
+      "name": "Office chores",
+      "description": "Miscellaneous office tasks",
+      "evidence": [
+        {"date": "2026-09-30", "source": "Slack", "line": "Booked a room"},
+        {"date": "2026-10-01", "source": "Slack", "line": "Ordered supplies"},
+        {"date": "2026-10-01", "source": "Claude session", "line": "Drafted a notice"}
+      ],
+      "status": "applied",
+      "neverSuggest": true,
+      "createdAt": "2026-10-02T10:00:00+09:00",
+      "updatedAt": "2026-10-05T10:00:00+09:00",
+      "pendingAnswer": null,
+      "history": [
+        {"answer": "reject", "answeredAt": "2026-10-03T09:00:00+09:00", "description": "Miscellaneous office tasks", "appliedAt": "2026-10-05T10:00:00+09:00", "result": "Recorded rejection"}
+      ]
+    }
+  ]
+}

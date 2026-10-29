@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "schedule": {
+    "mode": "interval",
+    "times": ["09:15", "18:45", "23:00"],
+    "interval": {"hours": 6, "anchor": "07:30"},
+    "quietRanges": [{"start": "23:00", "end": "07:00"}, {"start": "12:00", "end": "13:00"}]
+  },
+  "provider": "codex",
+  "logFolder": "~/Documents/logs",
+  "logLanguage": "ko",
+  "sessionFolders": ["~/Projects/alpha", "~/Projects/beta"],
+  "launchAtLogin": false,
+  "notifyOnSuccess": false,
+  "slack": {"userId": "UFIXTURE1", "displayName": "Fixture User", "checkedAt": "2026-10-01T09:00:00+09:00"}
+}
