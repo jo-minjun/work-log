@@ -87,7 +87,7 @@ flowchart LR
 | SuggestionStore | Reads `suggestions.json`. Writes only the answer fields, under the lock. Watches the file for changes. |
 | RunLog | Reads `runs.jsonl` for History and the monthly cost. |
 | UsageReader | Reads Claude usage from `claude-rate-limits.json` and Codex usage from the newest `~/.codex/sessions/**/*.jsonl`. |
-| Notifier | Posts "Collection finished" (with cost or tokens; can be turned off in Settings), "Collection failed" and "n new suggestions". Skipped slots post nothing. |
+| Notifier | Posts "Collection finished" (with the run summary as the body; can be turned off in Settings), "Collection failed" and "n new suggestions". Skipped slots post nothing. |
 | LoginItem | Registers the app with `SMAppService.mainApp` on first launch. Settings has a toggle for it. |
 
 The window layout follows the approved mockup (v4):
@@ -212,7 +212,7 @@ The time zone is the system time zone. There is no setting for it.
 One line per run, appended by `run.sh` and, for a few cases, the app:
 
 ```json
-{"startedAt": "ISO-8601", "endedAt": "ISO-8601", "trigger": "schedule|manual", "provider": "claude", "result": "succeeded|failed|skipped", "reason": "text or null", "costUsd": 0.97, "tokens": null, "logPath": "..."}
+{"startedAt": "ISO-8601", "endedAt": "ISO-8601", "trigger": "schedule|manual", "provider": "claude", "result": "succeeded|failed|skipped", "reason": "text or null", "costUsd": 0.97, "tokens": null, "summary": "text or null", "logPath": "..."}
 ```
 
 - `run.sh` writes `skipped` with reason "Another run is in progress" when the run lock is held.
@@ -268,6 +268,7 @@ What it adds:
 - It appends the run to `runs.jsonl`.
   - Claude: `costUsd` comes from `total_cost_usd`.
   - Codex: `tokens` is the sum from the `turn.completed` events. Codex reports no cost.
+  - `summary` is the first line of the provider's final report (Claude `result`, Codex last `agent_message`), without Markdown marks and at most 200 characters. The skill starts its report with a one-sentence summary for this.
 
 The app passes `trigger` to the script through an environment variable.
 

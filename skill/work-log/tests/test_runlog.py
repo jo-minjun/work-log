@@ -13,25 +13,26 @@ from pathlib import Path
 
 from helpers import SCRIPTS, SKILL_ROOT, cli_env
 
-from runlog import summarize
+from runlog import report_summary, summarize
 
 FIXTURES = SKILL_ROOT.parent.parent / "fixtures"
 RUN_SH = SCRIPTS / "run.sh"
 CODEX_TOKENS = 24763 + 122 + 30100 + 478
-EXPECTED_KEYS = ["startedAt", "endedAt", "trigger", "provider", "result", "reason", "costUsd", "tokens", "logPath"]
+EXPECTED_KEYS = ["startedAt", "endedAt", "trigger", "provider", "result", "reason", "costUsd", "tokens", "summary", "logPath"]
 
 
 class SummarizeTest(unittest.TestCase):
     def test_summarize_claude_fixture(self):
         self.assertEqual(
             summarize("claude", FIXTURES / "claude-result.json"),
-            {"costUsd": 0.97, "tokens": None, "isError": False},
+            {"costUsd": 0.97, "tokens": None, "summary": "Wrote 2 days to the monthly log.", "isError": False},
         )
 
     def test_summarize_codex_fixture(self):
         self.assertEqual(
             summarize("codex", FIXTURES / "codex-events.jsonl"),
-            {"costUsd": None, "tokens": CODEX_TOKENS, "isError": False},
+            {"costUsd": None, "tokens": CODEX_TOKENS, "summary": "Wrote 2 days to the monthly log.",
+             "isError": False},
         )
 
     def test_summarize_missing_output_is_error(self):
@@ -44,6 +45,11 @@ class SummarizeTest(unittest.TestCase):
             out = Path(tmp) / "events.jsonl"
             out.write_text('{"type":"turn.failed","error":{"message":"x"}}\n', encoding="utf-8")
             self.assertTrue(summarize("codex", out)["isError"])
+
+    def test_summary_is_the_first_report_line_without_markdown(self):
+        self.assertEqual(report_summary("\n## **10/29** collected, `0` warnings.\n\n| table |"), "10/29 collected, 0 warnings.")
+        self.assertEqual(len(report_summary("x" * 500)), 200)
+        self.assertIsNone(report_summary(None))
 
     def test_fixture_runs_use_spec_keys(self):
         for line in (FIXTURES / "runs.jsonl").read_text(encoding="utf-8").splitlines():
@@ -102,7 +108,7 @@ class RunShTest(unittest.TestCase):
         record = self.last_run()
         self.assertEqual(list(record), EXPECTED_KEYS)
         self.assertEqual((record["result"], record["provider"], record["trigger"]), ("succeeded", "claude", "schedule"))
-        self.assertEqual(record["costUsd"], 0.97)
+        self.assertEqual((record["costUsd"], record["summary"]), (0.97, "Wrote 2 days to the monthly log."))
 
     def test_run_sh_fails_when_nothing_was_written(self):
         self.write_settings(self.tmp / "vault", "claude")
@@ -124,7 +130,7 @@ class RunShTest(unittest.TestCase):
         record = self.last_run()
         self.assertEqual((record["result"], record["reason"]), ("skipped", "Another run is in progress"))
         self.assertEqual((record["provider"], record["trigger"]), ("claude", "schedule"))
-        self.assertEqual((record["costUsd"], record["tokens"]), (None, None))
+        self.assertEqual((record["costUsd"], record["tokens"], record["summary"]), (None, None, None))
         self.assertFalse(marker.exists())
 
     def test_run_sh_record_write_failure_exits_1(self):

@@ -252,6 +252,8 @@ python3 <scripts>/suggestions.py propose --json <payload folder>/propose-1.json
 
 ### 6. Report
 
+Start the report with one plain sentence, without Markdown, that summarizes the run: the days collected, how many items, and whether there were warnings. The WorkLog app shows this first line in its notification.
+
 - The days processed, with the number of projects and items for each day
 - Warnings (Slack failures and others) and the days not marked completed
 - The `skippedLines` count, when it is not 0

@@ -18,15 +18,30 @@ from settings import DATA_DIR
 DEFAULT_RUNS_PATH = DATA_DIR / "runs.jsonl"
 CODEX_FAILURE_EVENTS = ("turn.failed", "error")
 CODEX_USAGE_EVENT = "turn.completed"
+CODEX_ITEM_EVENT = "item.completed"
+CODEX_MESSAGE_ITEM = "agent_message"
+# A notification shows a few lines at most; the full report stays in the output file
+SUMMARY_MAX_CHARS = 200
+EMPTY_SUMMARY = {"costUsd": None, "tokens": None, "summary": None}
+
+
+def report_summary(report: str | None) -> str | None:
+    """The first non-empty line of the report, without Markdown marks. SKILL.md makes it a one-sentence summary."""
+    for line in (report or "").splitlines():
+        line = line.replace("**", "").replace("`", "").strip().lstrip("#").strip()
+        if line:
+            return line if len(line) <= SUMMARY_MAX_CHARS else line[:SUMMARY_MAX_CHARS - 1].rstrip() + "…"
+    return None
 
 
 def _summarize_claude(text: str) -> dict:
     data = json.loads(text)
-    return {"costUsd": data.get("total_cost_usd"), "tokens": None, "isError": bool(data.get("is_error"))}
+    return {"costUsd": data.get("total_cost_usd"), "tokens": None, "summary": report_summary(data.get("result")),
+            "isError": bool(data.get("is_error"))}
 
 
 def _summarize_codex(text: str) -> dict:
-    tokens, failed = 0, False
+    tokens, failed, report = 0, False, None
     for line in text.splitlines():
         if not line.strip():
             continue
@@ -40,7 +55,9 @@ def _summarize_codex(text: str) -> dict:
         elif kind == CODEX_USAGE_EVENT:
             usage = event.get("usage") or {}
             tokens += usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
-    return {"costUsd": None, "tokens": tokens, "isError": failed}
+        elif kind == CODEX_ITEM_EVENT and (event.get("item") or {}).get("type") == CODEX_MESSAGE_ITEM:
+            report = event["item"].get("text")
+    return {"costUsd": None, "tokens": tokens, "summary": report_summary(report), "isError": failed}
 
 
 def summarize(provider: str, output_path: Path) -> dict:
@@ -48,7 +65,7 @@ def summarize(provider: str, output_path: Path) -> dict:
         text = Path(output_path).read_text(encoding="utf-8")
         return _summarize_codex(text) if provider == "codex" else _summarize_claude(text)
     except (OSError, ValueError, AttributeError):
-        return {"costUsd": None, "tokens": None, "isError": True}
+        return {**EMPTY_SUMMARY, "isError": True}
 
 
 def append(path: Path, record: dict) -> None:
@@ -77,7 +94,7 @@ def main() -> int:
     cmd.add_argument("--runs", type=Path, default=DEFAULT_RUNS_PATH)
     args = parser.parse_args()
 
-    summary = summarize(args.provider, args.output) if args.output else {"costUsd": None, "tokens": None}
+    summary = summarize(args.provider, args.output) if args.output else EMPTY_SUMMARY
     append(args.runs, {
         "startedAt": args.started_at,
         "endedAt": args.ended_at,
@@ -87,6 +104,7 @@ def main() -> int:
         "reason": args.reason or None,
         "costUsd": summary["costUsd"],
         "tokens": summary["tokens"],
+        "summary": summary["summary"],
         "logPath": args.log_path or None,
     })
     return 0

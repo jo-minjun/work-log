@@ -65,9 +65,7 @@ public struct NotificationText: Equatable {
         case .succeeded:
             guard notifyOnSuccess else { return nil }
             let title = record.hasWarnings ? strings.collectionFinishedWithWarnings : strings.collectionFinished
-            if let cost = record.costUsd { return NotificationText(title: "\(title) · \(DisplayText.cost(cost))") }
-            if let tokens = record.tokens { return NotificationText(title: "\(title) · \(DisplayText.tokens(tokens, strings: strings))") }
-            return NotificationText(title: title)
+            return NotificationText(title: title, body: record.summary)
         }
     }
 

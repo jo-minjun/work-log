@@ -88,10 +88,11 @@ func checkSlotDecision() {
           "slot: during a run is skipped")
 }
 
-func runRecord(_ result: RunRecord.Result, at seconds: TimeInterval, reason: String? = nil, cost: Double? = nil, tokens: Int? = nil) -> RunRecord {
+func runRecord(_ result: RunRecord.Result, at seconds: TimeInterval, reason: String? = nil, cost: Double? = nil, tokens: Int? = nil,
+               summary: String? = nil) -> RunRecord {
     let start = Date(timeIntervalSince1970: seconds)
     return RunRecord(startedAt: start, endedAt: start, trigger: .schedule, provider: .claude, result: result,
-                     reason: reason, costUsd: cost, tokens: tokens)
+                     reason: reason, costUsd: cost, tokens: tokens, summary: summary)
 }
 
 func checkLastRunIgnoresSkipped() {
@@ -106,7 +107,7 @@ func checkWarningsMark() {
     let warned = runRecord(.succeeded, at: 500, reason: "Completed with warnings", cost: 0.97)
     check(RunOutcome.lastRunMark([runRecord(.failed, at: 100), warned]) == .warning, "warnings: last run with warnings gets the warning mark")
     check(RunOutcome.lastRunMark([warned, runRecord(.succeeded, at: 600)]) == .none, "warnings: a clean run clears it")
-    check(NotificationText.afterRun(warned, notifyOnSuccess: true, strings: .en)?.title == "Collection finished with warnings · $0.97",
+    check(NotificationText.afterRun(warned, notifyOnSuccess: true, strings: .en)?.title == "Collection finished with warnings",
           "warnings: success notification says so")
     check(NotificationText.afterRun(warned, notifyOnSuccess: false, strings: .en) == nil, "warnings: follows the success notification setting")
 }
@@ -140,10 +141,10 @@ func checkNewPendingCount() {
 }
 
 func checkNotificationText() {
-    check(NotificationText.afterRun(runRecord(.succeeded, at: 0, cost: 0.97), notifyOnSuccess: true, strings: .en)?.title == "Collection finished · $0.97",
-          "notify: claude success shows cost")
-    check(NotificationText.afterRun(runRecord(.succeeded, at: 0, tokens: 12345), notifyOnSuccess: true, strings: .en)?.title == "Collection finished · 12,345 tokens",
-          "notify: codex success shows tokens")
+    check(NotificationText.afterRun(runRecord(.succeeded, at: 0, cost: 0.97, summary: "Collected 10/29: 3 projects, 33 items."), notifyOnSuccess: true, strings: .en)
+          == NotificationText(title: "Collection finished", body: "Collected 10/29: 3 projects, 33 items."), "notify: success shows the summary, not the cost")
+    check(NotificationText.afterRun(runRecord(.succeeded, at: 0, tokens: 12345), notifyOnSuccess: true, strings: .en)
+          == NotificationText(title: "Collection finished"), "notify: no summary means a title only, without tokens")
     check(NotificationText.afterRun(runRecord(.succeeded, at: 0, cost: 0.97), notifyOnSuccess: false, strings: .en) == nil, "notify: success can be turned off")
     check(NotificationText.afterRun(runRecord(.failed, at: 0, reason: "Timed out"), notifyOnSuccess: false, strings: .en)
           == NotificationText(title: "Collection failed", body: "Timed out"), "notify: failure always posts")

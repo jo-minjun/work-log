@@ -16,10 +16,12 @@ public struct RunRecord: Codable, Equatable {
     public var reason: String?
     public var costUsd: Double?
     public var tokens: Int?
+    // The first line of the provider's report; run.sh asks the skill to make it a one-sentence summary.
+    public var summary: String?
     public var logPath: String?
 
     public init(startedAt: Date, endedAt: Date, trigger: Trigger, provider: AppSettings.Provider, result: Result,
-                reason: String? = nil, costUsd: Double? = nil, tokens: Int? = nil, logPath: String? = nil) {
+                reason: String? = nil, costUsd: Double? = nil, tokens: Int? = nil, summary: String? = nil, logPath: String? = nil) {
         self.startedAt = startedAt
         self.endedAt = endedAt
         self.trigger = trigger
@@ -28,6 +30,7 @@ public struct RunRecord: Codable, Equatable {
         self.reason = reason
         self.costUsd = costUsd
         self.tokens = tokens
+        self.summary = summary
         self.logPath = logPath
     }
 
@@ -40,7 +43,7 @@ public struct RunRecord: Codable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case startedAt, endedAt, trigger, provider, result, reason, costUsd, tokens, logPath
+        case startedAt, endedAt, trigger, provider, result, reason, costUsd, tokens, summary, logPath
     }
 
     public init(from decoder: Decoder) throws {
@@ -53,10 +56,11 @@ public struct RunRecord: Codable, Equatable {
         reason = try c.decodeIfPresent(String.self, forKey: .reason)
         costUsd = try c.decodeIfPresent(Double.self, forKey: .costUsd)
         tokens = try c.decodeIfPresent(Int.self, forKey: .tokens)
+        summary = try c.decodeIfPresent(String.self, forKey: .summary)
         logPath = try c.decodeIfPresent(String.self, forKey: .logPath)
     }
 
-    // Nulls are written explicitly: every line carries all nine keys, like the Python writer.
+    // Nulls are written explicitly: every line carries all ten keys, like the Python writer.
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(ISODate.format(startedAt), forKey: .startedAt)
@@ -67,6 +71,7 @@ public struct RunRecord: Codable, Equatable {
         try Self.encodeOrNull(&c, reason, .reason)
         try Self.encodeOrNull(&c, costUsd, .costUsd)
         try Self.encodeOrNull(&c, tokens, .tokens)
+        try Self.encodeOrNull(&c, summary, .summary)
         try Self.encodeOrNull(&c, logPath, .logPath)
     }
 

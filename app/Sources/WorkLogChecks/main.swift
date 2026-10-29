@@ -281,7 +281,8 @@ func runsCopyWithGarbage() -> URL {
 func checkRunLogSkipsBadLines() {
     let runs = RunLog.load(runsCopyWithGarbage())
     check(runs.count == 4, "runs: bad lines are skipped (got \(runs.count))")
-    check(runs.first?.costUsd == 0.97 && runs[1].tokens == 55463 && runs[2].reason == "Provider not found", "runs: fields decode")
+    check(runs.first?.costUsd == 0.97 && runs[1].tokens == 55463 && runs[2].reason == "Provider not found"
+          && runs.first?.summary == "Wrote 2 days to the monthly log." && runs[2].summary == nil, "runs: fields decode")
     check(RunLog.load(tempDir().appendingPathComponent("missing.jsonl")).isEmpty, "runs: missing file is empty")
 }
 
@@ -358,8 +359,8 @@ func checkRunLogAppend() {
     let lines = text.split(separator: "\n")
     check(text.hasSuffix("\n") && lines.count == 2, "append: one line per record, file created")
     let obj = lines.first.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
-    check(Set(obj?.keys.map { $0 } ?? []) == ["startedAt", "endedAt", "trigger", "provider", "result", "reason", "costUsd", "tokens", "logPath"],
-          "append: all nine keys are written, nulls included")
+    check(Set(obj?.keys.map { $0 } ?? []) == ["startedAt", "endedAt", "trigger", "provider", "result", "reason", "costUsd", "tokens", "summary", "logPath"],
+          "append: all ten keys are written, nulls included")
     check(RunLog.load(url) == [skipped, skipped], "append: lines load back equal")
 }
 
