@@ -15,6 +15,14 @@ work-log는 매일 한 일을 기록합니다. 헤드리스 코딩 에이전트(
 - **WorkLog.app**: macOS 메뉴 막대 앱입니다. 실행 일정을 관리하고, 지금 실행 버튼을 제공하고, 실행 기록과 사용량을 보여 줍니다. 새 프로젝트 제안에 대한 답도 여기서 받습니다.
 - **`skill/work-log`**: 스킬과 Python 스크립트입니다. 스킬을 직접 실행할 수도 있습니다(Claude Code에서는 `/work-log`, Codex에서는 `$work-log`).
 
+<p align="center">
+  <img src="docs/images/suggestions.png" width="260" alt="Suggestions tab">
+  <img src="docs/images/history.png" width="260" alt="History tab">
+  <img src="docs/images/settings.png" width="260" alt="Settings tab">
+</p>
+
+<p align="center"><sub>Suggestions(제안), History(기록), Settings(설정) 탭입니다. 스크린샷은 예시 데이터로 찍었습니다.</sub></p>
+
 ## 화면 이름
 
 앱의 기본 화면 언어는 영어입니다. 이 문서는 영어 화면 이름을 쓰고, 한국어 화면 이름을 괄호 안에 적습니다. 화면 언어는 설정 탭의 **App language**(앱 언어)에서 바꿉니다.

@@ -15,6 +15,14 @@ The repo has two parts:
 - **WorkLog.app**: a macOS menu bar app. It schedules runs, offers Run now, shows the run history and usage, and asks you about new-project suggestions.
 - **`skill/work-log`**: the skill and its Python scripts. You can also run the skill by hand (`/work-log` in Claude Code, `$work-log` in Codex).
 
+<p align="center">
+  <img src="docs/images/suggestions.png" width="260" alt="Suggestions tab">
+  <img src="docs/images/history.png" width="260" alt="History tab">
+  <img src="docs/images/settings.png" width="260" alt="Settings tab">
+</p>
+
+<p align="center"><sub>The Suggestions, History and Settings tabs. The screenshots use sample data.</sub></p>
+
 ## Requirements
 
 - macOS 14 or newer
