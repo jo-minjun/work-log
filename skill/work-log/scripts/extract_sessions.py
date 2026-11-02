@@ -19,10 +19,10 @@ from settings import DEFAULT_SETTINGS_PATH, Settings, SettingsError, load_settin
 DEFAULT_PROJECTS_ROOT = Path("~/.claude/projects").expanduser()
 PROMPT_MAX_CHARS = 300
 PROMPTS_PER_SESSION_MAX = 30
-WORK_LOG_SKILL = "work-log"
-WORK_LOG_COMMAND = "/work-log"
-# Codex invokes skills as `$name`
-CODEX_WORK_LOG_COMMAND = "$work-log"
+# Runs of these skills read the log instead of doing work, so their sessions are left out
+EXCLUDED_SKILLS = ("work-log", "daily")
+# Claude Code runs a skill as `/name`, Codex as `$name`
+SKILL_COMMAND_PREFIXES = ("/", "$")
 # Text the user pasted is a real request even if it starts with `<`
 USER_TAG_PREFIXES = ("<pasted_content",)
 PR_URL_RE = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+")
@@ -75,18 +75,24 @@ def _prompt_text(event: dict) -> str | None:
     return text
 
 
-def _is_work_log_event(event: dict) -> bool:
+def _starts_with_command(text: str, command: str) -> bool:
+    return text.startswith(command) and (len(text) == len(command) or text[len(command)].isspace())
+
+
+def _is_excluded_skill_event(event: dict) -> bool:
     content = event.get("message", {}).get("content")
-    # Conversation summaries describe this skill and may quote command strings, so they are not evidence of execution
+    # Conversation summaries describe these skills and may quote command strings, so they are not evidence of execution
     if event.get("type") == "user" and not event.get("isCompactSummary"):
         for text in _text_blocks(content):
             text = text.strip()
-            if text.startswith((WORK_LOG_COMMAND, CODEX_WORK_LOG_COMMAND)) or f"<command-name>{WORK_LOG_COMMAND}</command-name>" in text:
-                return True
+            for skill in EXCLUDED_SKILLS:
+                if (any(_starts_with_command(text, prefix + skill) for prefix in SKILL_COMMAND_PREFIXES)
+                        or f"<command-name>/{skill}</command-name>" in text):
+                    return True
     if event.get("type") == "assistant" and isinstance(content, list):
         for block in content:
             if (isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") == "Skill"
-                    and block.get("input", {}).get("skill") == WORK_LOG_SKILL):
+                    and block.get("input", {}).get("skill") in EXCLUDED_SKILLS):
                 return True
     return False
 
@@ -124,7 +130,7 @@ def _tool_result_texts(content) -> list[tuple[str, str]]:
 
 def _summarize(session_id: str, events: list[dict], title: str | None, settings: Settings) -> dict | None:
     first_cwd = next((e["cwd"] for e in events if _included_root(e.get("cwd"), settings.session_folders)), None)
-    if first_cwd is None or any(_is_work_log_event(e) or _is_programmatic(e) for e in events):
+    if first_cwd is None or any(_is_excluded_skill_event(e) or _is_programmatic(e) for e in events):
         return None
     times = [e["_local"] for e in events]
     branches, prompts, commits, prs = [], [], [], []

@@ -100,6 +100,21 @@ class ExtractSessionsTest(unittest.TestCase):
             write_session(self.root, f"p{i}", f"sid-{i}", events)
         self.assertEqual(self.sessions(), [])
 
+    def test_excludes_daily_sessions(self):
+        cases = [
+            [user("2026-10-28T01:00:00Z", self.cwd("checkout"), "/daily")],
+            [user("2026-10-28T01:00:00Z", self.cwd("checkout"), "$daily 2026-10-28")],
+            [user("2026-10-28T01:00:00Z", self.cwd("checkout"),
+                  "<command-message>daily</command-message>\n<command-name>/daily</command-name>")],
+            [user("2026-10-28T01:00:00Z", self.cwd("checkout"), "write my stand-up"),
+             assistant("2026-10-28T01:00:05Z", self.cwd("checkout"),
+                       [{"type": "tool_use", "id": "t1", "name": "Skill", "input": {"skill": "daily"}}])],
+        ]
+        for i, events in enumerate(cases):
+            write_session(self.root, f"p{i}", f"sid-{i}", events)
+        write_session(self.root, "q", "sid-kept", [user("2026-10-28T02:00:00Z", self.cwd("checkout"), "/daily-notes setup")])
+        self.assertEqual([s["sessionId"] for s in self.sessions()], ["sid-kept"])
+
     def test_excludes_codex_skill_invocation(self):
         write_session(self.root, "p", "sid-1", [user("2026-10-28T01:00:00Z", self.cwd("checkout"), "$work-log 2026-10-27")])
         write_session(self.root, "q", "sid-2", [user("2026-10-28T02:00:00Z", self.cwd("checkout"), "explain $work-log usage")])

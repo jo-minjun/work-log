@@ -8,15 +8,17 @@ import sys
 import tempfile
 import time
 import unittest
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
-from helpers import SCRIPTS, SKILL_ROOT, cli_env
+from helpers import SCRIPTS, SKILL_ROOT, TEST_TZ, cli_env
 
 from runlog import report_summary, summarize
 
 FIXTURES = SKILL_ROOT.parent.parent / "fixtures"
 RUN_SH = SCRIPTS / "run.sh"
+RUN_DAILY_SH = SCRIPTS / "run_daily.sh"
 CODEX_TOKENS = 24763 + 122 + 30100 + 478
 EXPECTED_KEYS = ["startedAt", "endedAt", "trigger", "provider", "result", "reason", "costUsd", "tokens", "summary", "logPath"]
 
@@ -345,6 +347,144 @@ class EnvShTest(unittest.TestCase):
 
     def test_worklog_path_replaces_everything(self):
         self.assertEqual(self.path_from(WORKLOG_PATH="/only/here", WORKLOG_EXTRA_PATH="/ignored"), ["/only/here"])
+
+
+class RunDailyShTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        self.home = self.tmp / "home"
+        self.home.mkdir()
+        self.stubs = self.tmp / "bin"
+        self.stubs.mkdir()
+        self.logs = self.tmp / "logs"
+        self.folder = self.tmp / "vault"
+        self.folder.mkdir()
+        self.env = {
+            **cli_env(self.tmp),
+            "WORKLOG_LOG_DIR": str(self.logs),
+            "WORKLOG_PATH": f"{self.stubs}:{Path(sys.executable).parent}:/usr/bin:/bin",
+            "WORKLOG_CLAUDE_PROJECTS": str(self.tmp / "projects"),
+        }
+        self.record = self.tmp / "claude-call"
+        self.write_settings()
+
+    def write_settings(self, **daily) -> None:
+        (self.home / "settings.json").write_text(
+            json.dumps({"logFolder": str(self.folder), "provider": "claude", "daily": daily}), encoding="utf-8")
+
+    def write_stub(self, name: str, body: str) -> None:
+        stub = self.stubs / name
+        stub.write_text(f"#!/bin/sh\n{body}", encoding="utf-8")
+        stub.chmod(0o755)
+
+    def claude_saving_a_daily(self) -> None:
+        today = datetime.now(ZoneInfo(TEST_TZ)).date().isoformat()
+        payload = self.tmp / "payload.json"
+        payload.write_text(json.dumps({"date": today, "doneRange": None, "done": [], "todo": [], "evidence": [],
+                                       "notes": []}), encoding="utf-8")
+        self.write_stub("claude", f'printf "%s\\n" "$@" > "{self.record}.args"\npwd > "{self.record}.cwd"\n'
+                                  f'cp context.json "{self.record}.context"\n'
+                                  f'python3 "{SCRIPTS}/daily.py" save --json "{payload}" --trigger app >/dev/null\n'
+                                  f'cat "{FIXTURES}/claude-result.json"\n')
+
+    def run_daily(self) -> subprocess.CompletedProcess:
+        return subprocess.run(["zsh", str(RUN_DAILY_SH)], env=self.env, capture_output=True, text=True, timeout=60)
+
+    def last_run(self) -> dict:
+        return json.loads((self.home / "dailies" / "last-run.json").read_text(encoding="utf-8"))
+
+    def test_saved_daily_is_ok_and_the_allowlist_is_strict(self):
+        self.claude_saving_a_daily()
+        proc = self.run_daily()
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        record = self.last_run()
+        self.assertEqual(list(record), ["startedAt", "endedAt", "trigger", "result", "reason"])
+        self.assertEqual((record["trigger"], record["result"], record["reason"]), ("app", "ok", None))
+        args = (self.tmp / "claude-call.args").read_text(encoding="utf-8").splitlines()
+        cwd = (self.tmp / "claude-call.cwd").read_text(encoding="utf-8").strip()
+        self.assertEqual(args[:2], ["-p", "/daily"])
+        self.assertEqual(args[args.index("--permission-mode") + 1], "dontAsk")
+        scripts = SCRIPTS.resolve()
+        allowed = args[args.index("--allowedTools") + 1:args.index("--disallowedTools")]
+        self.assertEqual(sorted(allowed), sorted([
+            f"Read(/{cwd}/**)", f"Edit(/{cwd}/**)", "Skill(daily)",
+            f"Bash(python3 {scripts}/daily.py save:*)", f"Bash(python3 {scripts}/daily.py show:*)",
+            "mcp__plugin_slack_slack__slack_search_public_and_private",
+            "mcp__plugin_slack_slack__slack_read_thread", "mcp__plugin_slack_slack__slack_read_user_profile",
+            "mcp__plugin_slack_slack__slack_read_channel",
+        ]))
+        denied = args[args.index("--disallowedTools") + 1:args.index("--append-system-prompt")]
+        for rule in ("WebFetch", "Bash(curl:*)", "Bash(gh:*)", "Bash(git:*)"):
+            self.assertIn(rule, denied)
+        context_file = json.loads((self.tmp / "claude-call.context").read_text(encoding="utf-8"))
+        self.assertEqual(context_file["today"], datetime.now(ZoneInfo(TEST_TZ)).date().isoformat())
+        self.assertFalse(any(a.startswith("mcp__atlassian") for a in args))
+        context = args[args.index("--append-system-prompt") + 1]
+        self.assertIn(str(scripts), context)
+        self.assertIn("--trigger app", context)
+        self.assertIn(f"{cwd}/context.json", context)
+        self.assertFalse(Path(cwd).exists())
+        self.assertFalse((self.logs / ".daily-lock").exists())
+
+    def test_jira_read_tools_only_when_configured(self):
+        self.write_settings(jiraMcpServer="atlassian")
+        self.claude_saving_a_daily()
+        self.assertEqual(self.run_daily().returncode, 0)
+        args = (self.tmp / "claude-call.args").read_text(encoding="utf-8").splitlines()
+        self.assertIn("mcp__atlassian__searchJiraIssuesUsingJql", args)
+        self.assertIn("mcp__atlassian__getJiraIssue", args)
+        self.assertNotIn("mcp__atlassian", args)
+
+    def test_unsafe_jira_server_name_is_refused(self):
+        self.claude_saving_a_daily()
+        for name in ("x__*", "a__b", "x y", "*"):
+            with self.subTest(name=name):
+                self.write_settings(jiraMcpServer=name)
+                self.assertEqual(self.run_daily().returncode, 1)
+                self.assertEqual(self.last_run()["reason"], "Invalid Jira MCP server name")
+                self.assertFalse((self.tmp / "claude-call.args").exists())
+
+    def test_jira_server_name_may_hold_underscores(self):
+        self.write_settings(jiraMcpServer="claude_ai_Atlassian")
+        self.claude_saving_a_daily()
+        self.assertEqual(self.run_daily().returncode, 0)
+        args = (self.tmp / "claude-call.args").read_text(encoding="utf-8").splitlines()
+        self.assertIn("mcp__claude_ai_Atlassian__getJiraIssue", args)
+
+    def test_timeout(self):
+        self.env["WORKLOG_DAILY_TIMEOUT_SEC"] = "1"
+        self.write_stub("claude", "sleep 5\n")
+        self.assertEqual(self.run_daily().returncode, 1)
+        self.assertEqual((self.last_run()["result"], self.last_run()["reason"]), ("timeout", "Timed out after 1s"))
+
+    def test_nothing_saved_is_no_output(self):
+        self.write_stub("claude", f'cat "{FIXTURES}/claude-result.json"\n')
+        self.assertEqual(self.run_daily().returncode, 1)
+        self.assertEqual((self.last_run()["result"], self.last_run()["reason"]),
+                         ("noOutput", "No daily was saved during this run"))
+
+    def test_provider_failure(self):
+        self.write_stub("claude", "exit 3\n")
+        self.assertEqual(self.run_daily().returncode, 1)
+        self.assertEqual((self.last_run()["result"], self.last_run()["reason"]),
+                         ("failed", "Provider exited with code 3"))
+
+    def test_held_lock_is_busy_and_does_not_run(self):
+        (self.logs / ".daily-lock").mkdir(parents=True)
+        self.claude_saving_a_daily()
+        self.assertEqual(self.run_daily().returncode, 0)
+        self.assertEqual(self.last_run()["result"], "busy")
+        self.assertFalse((self.tmp / "claude-call.args").exists())
+        self.assertTrue((self.logs / ".daily-lock").exists())
+
+    def test_collection_lock_does_not_block_a_daily(self):
+        (self.logs / ".lock").mkdir(parents=True)
+        self.claude_saving_a_daily()
+        self.assertEqual(self.run_daily().returncode, 0)
+        self.assertEqual(self.last_run()["result"], "ok")
+        self.assertTrue((self.logs / ".lock").exists())
 
 
 if __name__ == "__main__":

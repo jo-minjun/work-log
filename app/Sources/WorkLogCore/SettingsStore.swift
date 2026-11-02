@@ -10,6 +10,7 @@ public enum SettingsStore {
     // The collector owns `slack` and writes it without a lock, so the app replaces only these keys.
     static let appOwnedKeys = [
         "schedule", "provider", "logFolder", "logLanguage", "appLanguage", "sessionFolders", "launchAtLogin", "notifyOnSuccess", "scheduleEnabled",
+        "daily",
         "version",
     ]
 

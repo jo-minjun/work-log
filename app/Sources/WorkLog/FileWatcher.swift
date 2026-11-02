@@ -26,6 +26,7 @@ final class FileWatcher {
     private var stamps: [String: Stamp] = [:]
     private var pending: DispatchWorkItem?
 
+    // A name of "." watches the directory's own stamp, which changes whenever a file inside is created or replaced.
     init(directory: URL, names: [String], onChange: @escaping (Set<String>) -> Void) {
         self.directory = directory
         self.names = names

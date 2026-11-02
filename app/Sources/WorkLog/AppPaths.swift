@@ -22,6 +22,9 @@ struct AppPaths {
     var lockDir: URL { logDir.appendingPathComponent(".lock") }
     var runnerOutput: URL { logDir.appendingPathComponent("app-runner.log") }
     var runScript: URL? { skillDir?.appendingPathComponent("scripts/run.sh") }
+    var dailies: URL { dataDir.appendingPathComponent("dailies") }
+    var dailyLockDir: URL { logDir.appendingPathComponent(".daily-lock") }
+    var dailyScript: URL? { skillDir?.appendingPathComponent("scripts/run_daily.sh") }
 
     // Same overrides as run.sh and the Python scripts, so a test environment never touches real data.
     static func current(environment: [String: String] = ProcessInfo.processInfo.environment) -> AppPaths {

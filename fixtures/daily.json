@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-02",
+  "doneRange": [
+    "2026-10-30",
+    "2026-11-01"
+  ],
+  "done": [
+    {
+      "project": "Payments",
+      "items": [
+        "Merged the webhook retry PR and checked the dev deploy (api#1234)",
+        "Designed the refund API contract"
+      ]
+    },
+    {
+      "project": "Other",
+      "items": [
+        "Answered a data question from the analytics team"
+      ]
+    }
+  ],
+  "todo": [
+    {
+      "project": "Payments",
+      "items": [
+        "Address review comments on the refund contract (docs#56)",
+        "Open the refund API PR"
+      ]
+    },
+    {
+      "project": "Other",
+      "items": [
+        "Review the shared CI config change (infra#78)"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "task": "Address review comments on the refund contract (docs#56)",
+      "reason": "PR is open with 2 unresolved comments",
+      "sources": [
+        "github"
+      ],
+      "weak": false,
+      "links": [
+        "https://github.com/example/docs/pull/56"
+      ]
+    },
+    {
+      "task": "Open the refund API PR",
+      "reason": "feature/refund has 3 commits and no PR",
+      "sources": [
+        "git",
+        "log"
+      ],
+      "weak": false,
+      "links": []
+    },
+    {
+      "task": "Review the shared CI config change (infra#78)",
+      "reason": "Team review request, updated 2 days ago",
+      "sources": [
+        "github"
+      ],
+      "weak": true,
+      "links": [
+        "https://github.com/example/infra/pull/78"
+      ]
+    }
+  ],
+  "notes": [
+    "The 10/30 log ends at 10:00; later work may be missing",
+    "Left out 2 personal tooling items"
+  ],
+  "sources": {
+    "log": "ok",
+    "github": "ok",
+    "localGit": "ok",
+    "slack": "ok",
+    "standup": "notConfigured",
+    "jira": "notConfigured"
+  },
+  "generatedAt": "2026-11-02T10:05:12+09:00",
+  "trigger": "app",
+  "text": "Done (10/30–11/1)\n- Payments\n  - Merged the webhook retry PR and checked the dev deploy (api#1234)\n  - Designed the refund API contract\n- Other\n  - Answered a data question from the analytics team\n\nTo do (11/2)\n- Payments\n  - Address review comments on the refund contract (docs#56)\n  - Open the refund API PR\n- Other\n  - Review the shared CI config change (infra#78)"
+}

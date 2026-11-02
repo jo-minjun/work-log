@@ -14,6 +14,7 @@ work-log는 매일 한 일을 기록합니다. 헤드리스 코딩 에이전트(
 
 - **WorkLog.app**: macOS 메뉴 막대 앱입니다. 실행 일정을 관리하고, 지금 실행 버튼을 제공하고, 실행 기록과 사용량을 보여 줍니다. 새 프로젝트 제안에 대한 답도 여기서 받습니다.
 - **`skill/work-log`**: 스킬과 Python 스크립트입니다. 스킬을 직접 실행할 수도 있습니다(Claude Code에서는 `/work-log`, Codex에서는 `$work-log`).
+- **`skill/daily`**: 로그와 다른 출처로 데일리 스탠드업 초안을 씁니다(`/daily`, `$daily`). [데일리 스탠드업](#데일리-스탠드업) 참고.
 
 <p align="center">
   <img src="docs/images/suggestions.png" width="260" alt="Suggestions tab">
@@ -52,11 +53,11 @@ curl -fsSL https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.s
 1. 실행 PATH의 `python3`가 3.11 이상인지 확인합니다. 아니면 멈춥니다.
 2. 셸에서 `python3`, `claude`, `codex`가 있는 폴더를 기록합니다. 앱은 로그인 셸 없이 실행을 시작하므로 이 폴더 정보가 필요합니다.
 3. 앱을 release 모드로 빌드하고 ad hoc 서명한 뒤 `~/Applications/WorkLog.app`으로 설치합니다.
-4. 두 에이전트의 사용자 스킬 폴더에 스킬 링크를 만듭니다. 두 링크 모두 `<저장소>/skill/work-log`를 직접 가리킵니다.
-   - Claude Code용: `~/.claude/skills/work-log`
-   - Codex용: `~/.agents/skills/work-log`
+4. 두 에이전트의 사용자 스킬 폴더에 두 스킬의 링크를 만듭니다. 모든 링크는 저장소를 직접 가리킵니다.
+   - Claude Code용: `~/.claude/skills/work-log`, `~/.claude/skills/daily`
+   - Codex용: `~/.agents/skills/work-log`, `~/.agents/skills/daily`
 
-   이미 저장소를 가리키는 링크는 그대로 둡니다. 다른 곳을 가리키는 링크는 바꾸고, 이전 대상을 출력합니다. 두 위치 중 한 곳에 실제 파일이나 폴더가 있으면, 아무것도 바꾸기 전에 설치를 멈춥니다.
+   `work-log` 링크는 `<저장소>/skill/work-log`를, `daily` 링크는 `<저장소>/skill/daily`를 가리킵니다. 이미 저장소를 가리키는 링크는 그대로 둡니다. 다른 곳을 가리키는 링크는 바꾸고, 이전 대상을 출력합니다. 네 위치 중 한 곳에 실제 파일이나 폴더가 있으면, 아무것도 바꾸기 전에 설치를 멈춥니다.
 5. 앱을 엽니다.
 
 옵션:
@@ -91,9 +92,13 @@ curl -fsSL https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.s
 | App language(앱 언어) | English | 앱 화면의 언어입니다. 로그 언어와 따로 정합니다 |
 | Log language(로그 언어) | English | 영어 또는 한국어. [로그 언어](#로그-언어) 참고 |
 | Launch at login(로그인 시 자동 실행) | 켜짐 | |
-| Notify when a collection finishes(수집이 끝나면 알림) | 켜짐 | 실패와 새 제안은 이 설정과 상관없이 항상 알립니다 |
+| Notify when a collection finishes(수집이 끝나면 알림) | 켜짐 | 실패와 새 제안은 이 설정과 상관없이 항상 알립니다. "Daily ready"(데일리 생성 완료) 알림도 이 설정을 따릅니다 |
+| Daily: GitHub accounts(GitHub 계정) | 비어 있음(활성 `gh` 계정) | PR을 볼 `gh` 계정을 쉼표로 구분해 적습니다. 검색마다 그 계정의 토큰을 씁니다. WorkLog는 `gh auth switch`를 실행하지 않습니다 |
+| Daily: GitHub owners(GitHub 조직) | 비어 있음(제한 없음) | 검색할 조직이나 사용자를 쉼표로 구분해 적습니다 |
+| Daily: Stand-up Slack channel(Standup Slack 채널) | 비어 있음(건너뜀) | 데일리를 올리는 채널입니다. 마지막으로 올린 데일리에서 끝나지 않은 일을 이어받습니다 |
+| Daily: Jira MCP server(Jira MCP 서버 이름) | 비어 있음(건너뜀) | Claude Code에 추가한 Atlassian MCP 서버 이름입니다. 예: `atlassian` |
 
-설정은 데이터 폴더의 `settings.json`에 저장됩니다. 일정과 앱 관련 키는 앱이 관리합니다. 수집기는 `slack` 항목만 씁니다.
+설정은 데이터 폴더의 `settings.json`에 저장됩니다. 일정, 앱 관련 키, `daily` 키는 앱이 관리합니다. 수집기는 `slack` 항목만 씁니다.
 
 ## 한 번의 실행이 하는 일
 
@@ -146,6 +151,23 @@ curl -fsSL https://raw.githubusercontent.com/jo-minjun/work-log/main/bootstrap.s
 
 주제가 이미 있는 프로젝트에 맞으면, 실행은 묻지 않고 그 프로젝트의 설명을 넓히고 항목을 옮깁니다.
 
+## 데일리 스탠드업
+
+Daily(데일리) 탭은 최신 스탠드업 초안을 보여 주고, **Copy**(복사)로 복사합니다. **Generate now**(지금 생성)는 `daily` 스킬을 헤드리스로 실행합니다(최대 15분). **Stop**(중지)으로 멈출 수 있습니다. Claude Code에서 `/daily`를 실행해도 초안이 저장되고, 탭에 바로 나옵니다.
+
+초안은 프로젝트별로 묶은 두 부분으로 되어 있습니다.
+
+- **Done**(한 일): 지난 스탠드업 이후에 한 일입니다. 범위는 오늘 이전에 로그가 있는 가장 최근 평일부터 시작합니다. 그래서 월요일에는 금요일부터 일요일까지가 들어갑니다.
+- **To do**(할 일): 추천 할 일 5–8개입니다. 다른 사람이 기다리는 일(나에게 온 질문, 리뷰 요청, 기한이 된 결정)이 먼저 오고, 그다음 진행 중인 일의 다음 단계(열린 PR, 커밋은 있고 PR이 없는 브랜치), 마지막으로 Jira 이슈가 옵니다.
+
+할 일마다 근거는 **Evidence**(할 일 근거)에 있습니다. 근거가 약한 할 일도 목록에 남고, 근거에 약하다고 표시됩니다. 실패했거나 설정하지 않은 출처는 참고 아래에 나옵니다.
+
+스킬은 로그, GitHub(`gh search prs`), 최근 세션이 작업한 저장소의 git 상태, Slack, 설정했다면 Jira를 읽습니다. 마지막 수집 이후 빠진 시간은 Slack과 GitHub로 채우므로, 먼저 수집할 필요가 없습니다. 메시지를 보내거나, Jira·GitHub를 바꾸거나, 로그를 쓰지 않습니다.
+
+범위는 마지막으로 저장한 초안보다 앞에서 시작하지 않습니다. 그래서 수집이 빠진 날이 있어도 이미 보고한 일이 다시 들어오지 않습니다. `/work-log`처럼, `/daily`를 실행한 세션은 수집에서 빠집니다. 새 세션에서 실행하세요.
+
+초안은 데이터 폴더의 `dailies/<날짜>.json`에 저장됩니다. 같은 날 새로 만들면 이전 초안을 덮어씁니다. 30일이 지난 초안은 지웁니다.
+
 ## 사용량 표시
 
 사용량 영역은 두 가지 보기를 오갑니다.
@@ -181,7 +203,8 @@ printf '%s' "$input" | ~/.claude/skills/work-log/scripts/save_rate_limits.sh
 | 위치 | 내용 |
 |---|---|
 | `~/Library/Application Support/WorkLog/` | `settings.json`, `suggestions.json`(과 `.lock`), `runs.jsonl`(실행 기록), `state.json`(마지막 완료일), `claude-rate-limits.json` |
-| `~/Library/Logs/work-log/` | `run.log`와 `app-runner.log`(텍스트 로그), 실행마다 `<날짜-시각>.json`(대화 기록을 포함한 에이전트 출력)과 `.err`, 실행 중에만 있는 `.lock` |
+| `~/Library/Application Support/WorkLog/dailies/` | 데일리 초안마다 `<날짜>.json` 하나, 마지막 Generate now 결과인 `last-run.json` |
+| `~/Library/Logs/work-log/` | `run.log`와 `app-runner.log`(텍스트 로그), 실행마다 `<날짜-시각>.json`(대화 기록을 포함한 에이전트 출력)과 `.err`, 실행 중에만 있는 `.lock`. 데일리 실행은 `daily.log`, `daily-<날짜-시각>.json`/`.err`, `.daily-lock`을 씁니다 |
 | 로그 폴더(기본 `~/WorkLog`) | 월별 파일과 프로젝트 목록 |
 
 WorkLog의 두 폴더는 소유자만 접근할 수 있고(0700), 그 안의 파일은 0600입니다. 실행마다 생기는 `.json`과 `.err` 파일은 7일 뒤에 지웁니다. `run.log`와 `app-runner.log`가 1MB를 넘으면 마지막 1000줄만 남깁니다. 각 실행은 새 임시 폴더에서 작업하고, 실행이 끝나거나 중지되면 그 폴더를 지웁니다.
@@ -194,6 +217,8 @@ WorkLog의 두 폴더는 소유자만 접근할 수 있고(0700), 그 안의 파
 | `WORKLOG_LOG_DIR` | 로그 폴더를 바꿉니다 |
 | `WORKLOG_EXTRA_PATH` | 기본 실행 PATH 앞에 폴더를 추가합니다. `install.sh`가 앱의 Info.plist(`WorkLogExtraPath`)에 씁니다 |
 | `WORKLOG_PATH` | 실행 PATH 전체를 바꿉니다. 테스트용입니다 |
+| `WORKLOG_CLAUDE_PROJECTS` | `daily_context.py`가 읽는 `~/.claude/projects`를 바꿉니다. 테스트용입니다 |
+| `WORKLOG_DAILY_TIMEOUT_SEC` | 데일리 실행의 15분 제한을 바꿉니다. 테스트용입니다 |
 | `WORKLOG_INSTALL_DIR` | `bootstrap.sh`가 클론할 폴더를 바꿉니다(기본값 `~/.local/share/work-log`) |
 | `WORKLOG_REPO_URL` | `bootstrap.sh`가 클론할 저장소를 바꿉니다(기본값 `https://github.com/jo-minjun/work-log.git`). 포크와 테스트용입니다 |
 
@@ -207,6 +232,7 @@ Codex는 새 임시 폴더에서 `codex exec --json --sandbox workspace-write`�
 - **MCP 제한이 없습니다.** WorkLog에는 Codex용 허용 목록이 없습니다. Codex 실행은 Codex에 설정한 모든 MCP 도구를 부를 수 있습니다. 여기에는 메시지를 보내는 Slack 도구도 포함됩니다.
 - **세션이 남습니다.** Codex는 세션 파일(대화 원문)을 `~/.codex/sessions`에 계속 보관합니다. WorkLog는 그 파일에서 사용량을 읽기 때문에 `--ephemeral`을 넘기지 않습니다.
 - **Codex는 비용을 보고하지 않고** 토큰만 보고합니다.
+- **데일리의 GitHub 조회.** `workspace-write` 샌드박스는 기본적으로 네트워크가 없습니다. 그래서 Codex에서는 데일리의 GitHub 출처가 대개 실패로 끝납니다.
 
 **Slack을 쓸 수 없을 때**(두 실행 도구 모두 해당), 실행은 수집할 첫날 하나만, 세션만으로 경고와 함께 쓰고 멈춥니다. 그날은 완료로 처리됩니다. 그래서 Slack 문제가 계속되면 실행할 때마다 밀린 날이 하루씩만 줄어듭니다. 이런 실행은 경고와 함께 성공으로 기록되고, 메뉴 막대에 주황색 점이 표시됩니다. Slack 접근을 고친 뒤, 해당 날짜를 직접 다시 수집하세요.
 
@@ -218,10 +244,18 @@ Codex는 새 임시 폴더에서 `codex exec --json --sandbox workspace-write`�
   - 로그 폴더와 실행의 임시 폴더 안에서만 `Edit`
   - `work-log` 스킬
   - 읽기 전용 Slack 도구 세 개: 검색, 스레드 읽기, 프로필 읽기
+- **헤드리스 데일리 권한.** Generate now도 같은 모드로 실행하고, 더 좁은 허용 목록을 씁니다.
+  - `python3 <skill>/scripts/daily.py save`와 `daily.py show`를 절대 경로로 실행
+  - 실행의 임시 폴더 안에서만 `Read`와 `Edit`, 그리고 `daily` 스킬
+  - 읽기 전용 Slack 도구 네 개: 검색, 스레드 읽기, 프로필 읽기, 채널 읽기
+  - Jira MCP 서버를 설정한 경우 그 서버의 읽기 도구만(`atlassianUserInfo`, `getAccessibleAtlassianResources`, `searchJiraIssuesUsingJql`, `getJiraIssue`). 서버 이름에는 영문자, 숫자, `_`, `-`만 쓸 수 있고 `__`는 쓸 수 없습니다
+  - 내 설정이 허용해도 거부하는 도구: `WebFetch`, `WebSearch`, Bash의 `curl`, `wget`, `gh`, `git`, `nc`, `ssh`. 이 목록이 전부는 아닙니다
+- **데일리의 사실 수집은 에이전트보다 먼저 실행됩니다.** `run_daily.sh`가 `daily_context.py`를 직접 실행하고, 결과를 파일로 에이전트에게 넘깁니다. 이 스크립트는 최근 세션 폴더에서 `git`을, 내 토큰으로 `gh`를 실행합니다. 그래서 에이전트는 이 스크립트를 실행하거나 입력을 고를 수 없고, `git`은 `core.fsmonitor`를 끈 채로 실행합니다. GitHub 토큰은 `GH_TOKEN`으로 `gh` 호출 하나에만 전달하고, 출력하거나 저장하지 않습니다.
+- **데일리는 붙여 넣기 위한 글입니다.** Slack, PR 제목, Jira 이슈에 심어진 문구가 에이전트에게 채널에 올리면 안 되는 내용을 초안에 넣게 할 수 있습니다. 채널에 붙여 넣기 전에 초안을 읽어 보세요.
 - **내 Claude Code 설정도 함께 적용됩니다.** `~/.claude/settings.json`의 허용 규칙, 훅, 플러그인, MCP 서버가 합쳐집니다. `dontAsk`는 아무 규칙도 허용하지 않은 것만 거부합니다.
-- **`Read`는 범위 제한이 없습니다.** Slack 메시지에 심어진 문구가 에이전트에게 로컬 파일을 읽게 할 수 있습니다. 밖으로 나가는 길은 좁습니다. 웹 접근이 없고, 다른 셸 명령이 없고, 두 폴더 밖에는 쓸 수 없고, Slack은 읽기 전용입니다. 그래도 에이전트가 읽은 내용이 로그 폴더(iCloud가 동기화할 수 있음)나, 7일 동안 남는 실행의 `.json` 대화 기록에 들어갈 수 있습니다.
+- **수집 실행의 `Read`는 범위 제한이 없습니다.** Slack 메시지에 심어진 문구가 에이전트에게 로컬 파일을 읽게 할 수 있습니다. 내 설정이 더 허용하지 않는 한, 밖으로 나가는 길은 좁습니다. 웹 접근이 없고, 다른 셸 명령이 없고, 두 폴더 밖에는 쓸 수 없고, Slack은 읽기 전용입니다. 그래도 에이전트가 읽은 내용이 로그 폴더(iCloud가 동기화할 수 있음)나, 7일 동안 남는 실행의 `.json` 대화 기록에 들어갈 수 있습니다.
 - **프롬프트 인젝션.** 스킬은 수집한 모든 글(Slack 메시지, 세션 프롬프트, 프로젝트 목록)을 데이터로 다룹니다. 그 안의 지시, 명령, URL은 따르지 않습니다.
-- **비밀 값 검사.** `write_day.py day`와 `suggestions.py propose`는 인증 정보처럼 보이는 값을 거부하고 종료 코드 4로 끝납니다. 예를 들면 Slack·GitHub 토큰, AWS 키, `sk-` 키, JWT, 개인 키, 그리고 signature·token·key·password 쿼리 값이 있는 URL입니다. 패턴 기반이라 모든 비밀 값을 잡지는 못합니다.
+- **비밀 값 검사.** `write_day.py day`, `suggestions.py propose`, `daily.py save`는 인증 정보처럼 보이는 값을 거부하고 종료 코드 4로 끝납니다. 예를 들면 Slack·GitHub 토큰, AWS 키, `sk-` 키, JWT, 개인 키, 그리고 signature·token·key·password 쿼리 값이 있는 URL입니다. 패턴 기반이라 모든 비밀 값을 잡지는 못합니다.
 - **경로 옵션.** 허용된 스크립트는 `--settings`, `--state`, `--file` 경로 옵션을 받습니다. 에이전트가 이 옵션으로 쓰기 가능한 다른 폴더에 정해진 이름의 파일(`settings.json`, `state.json` 등)을 만들 수 있습니다. 내용은 에이전트가 고른 것이 아니라 WorkLog 자신의 데이터이므로 위험은 낮습니다.
 
 ## 잠자기와 놓친 실행
@@ -242,10 +276,10 @@ cd app && WORKLOG_SKILL_PATH="$PWD/../skill/work-log" swift run WorkLog   # 번�
 
 1. 창에서 WorkLog를 종료합니다. 실행 중이면 앱이 먼저 묻습니다.
 2. 시스템 설정 → 일반 → 로그인 항목에서 지웁니다. 또는 종료하기 전에 **Launch at login**(로그인 시 자동 실행)을 끕니다.
-3. 앱과 스킬 링크 두 개를 지웁니다.
+3. 앱과 스킬 링크 네 개를 지웁니다.
    ```sh
    rm -rf ~/Applications/WorkLog.app      # 또는 <prefix>/WorkLog.app
-   rm ~/.claude/skills/work-log ~/.agents/skills/work-log
+   rm ~/.claude/skills/work-log ~/.agents/skills/work-log ~/.claude/skills/daily ~/.agents/skills/daily
    ```
 4. 데이터 폴더와 로그 폴더를 지웁니다.
    ```sh

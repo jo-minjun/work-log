@@ -473,5 +473,9 @@ checkKoreanDisplayText()
 checkProcessGroupTerminate()
 checkProcessGroupExitCode()
 
+checkDailySettings()
+checkDailyStoreLatest()
+checkDailyFormat()
+
 print("\(passedCount) passed, \(failedCount) failed")
 exit(failedCount > 0 ? 1 : 0)

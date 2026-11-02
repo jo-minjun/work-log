@@ -19,9 +19,11 @@ final class AppModel: ObservableObject {
         case backUp(file: String, detail: String)
         case saveSettings(detail: String)
         case saveAnswer(detail: String)
+        case startDaily(detail: String)
 
         func message(_ strings: UIStrings) -> String {
             switch self {
+            case .startDaily(let detail): strings.dailyRunFailed(detail)
             case .backUp(let file, let detail): strings.couldNotBackUp(file, detail)
             case .saveSettings(let detail): strings.couldNotSaveSettings(detail)
             case .saveAnswer(let detail): strings.couldNotSaveAnswer(detail)
@@ -44,19 +46,26 @@ final class AppModel: ObservableObject {
     @Published private(set) var answering: Set<String> = []
     @Published private(set) var now = Date()
     @Published var actionError: ActionError?
+    @Published private(set) var daily: Daily?
+    @Published private(set) var dailyRun: DailyRun?
+    @Published private(set) var dailyStartedAt: Date?
 
     let paths: AppPaths
     private let runner: Runner
+    private let dailyRunner: Runner
     private let notifier = Notifier()
     private var watcher: FileWatcher?
+    private var dailyWatcher: FileWatcher?
     private var slotTimer: Timer?
     private var scheduledSlot: Date?
     private var knownPending: Set<String>?
 
     init(paths: AppPaths = .current()) {
         self.paths = paths
-        runner = Runner(paths: paths)
+        runner = Runner(paths: paths, script: paths.runScript, lockDir: paths.lockDir)
+        dailyRunner = Runner(paths: paths, script: paths.dailyScript, lockDir: paths.dailyLockDir)
         runner.onFinish = { [weak self] in self?.runFinished($0) }
+        dailyRunner.onFinish = { [weak self] in self?.dailyFinished($0) }
     }
 
     // MARK: Derived state
@@ -75,6 +84,14 @@ final class AppModel: ObservableObject {
     var settingsErrorMessage: String? { settingsError.map(strings.settingsUnreadable) }
     var suggestionsErrorMessage: String? { suggestionsError.map(strings.suggestionsUnreadable) }
     var actionErrorMessage: String? { actionError?.message(strings) }
+    // A failed run is shown until a newer daily exists, so a later /daily in a terminal clears it.
+    var dailyFailureMessage: String? {
+        guard let run = dailyRun, !run.succeeded else { return nil }
+        if let daily, let generated = ISODate.parse(daily.generatedAt), let ended = ISODate.parse(run.endedAt), generated > ended {
+            return nil
+        }
+        return strings.dailyRunFailed(run.reason ?? run.result.rawValue)
+    }
 
     var slackStatus: String {
         guard let slack = settings.slack, let userId = slack.userId else { return strings.slackNotChecked }
@@ -91,6 +108,8 @@ final class AppModel: ObservableObject {
         try? FileManager.default.createDirectory(at: paths.dataDir, withIntermediateDirectories: true,
                                                  attributes: [.posixPermissions: AppPaths.privateDirectoryMode])
         notifier.requestAuthorization()
+        try? FileManager.default.createDirectory(at: paths.dailies, withIntermediateDirectories: true,
+                                                 attributes: [.posixPermissions: AppPaths.privateDirectoryMode])
         reloadAll()
         if settingsError == nil { LoginItem.applyOnFirstLaunch(settings.launchAtLogin) }
 
@@ -100,6 +119,10 @@ final class AppModel: ObservableObject {
         ]) { [weak self] in self?.reload($0) }
         watcher.start()
         self.watcher = watcher
+        // Dailies have one file per date; the folder's own stamp changes on every atomic replace inside it.
+        let dailyWatcher = FileWatcher(directory: paths.dailies, names: ["."]) { [weak self] _ in self?.reloadDaily() }
+        dailyWatcher.start()
+        self.dailyWatcher = dailyWatcher
 
         observe(NSWorkspace.shared.notificationCenter, NSWorkspace.didWakeNotification) { $0.recomputeSchedule(); $0.reloadUsage() }
         observe(.default, .NSSystemClockDidChange) { $0.recomputeSchedule() }
@@ -119,17 +142,20 @@ final class AppModel: ObservableObject {
 
     // Covers logout and any quit path that skipped the confirmation. A killed run.sh writes no line, so the app does.
     func stopRunForQuit() {
+        stopDaily()
         guard let stopped = runner.terminate() else { return }
         appendRun(.appFailure(trigger: stopped.trigger, provider: stopped.provider, startedAt: stopped.spawnedAt,
                               endedAt: Date(), reason: RunRecord.stoppedOnQuitReason))
     }
 
     func quit() {
-        if runner.isRunning {
+        if runner.isRunning || dailyRunner.isRunning {
             NSApp.activate(ignoringOtherApps: true)
             let alert = NSAlert()
-            alert.messageText = strings.quitAlertTitle
-            alert.informativeText = strings.quitAlertBody
+            alert.messageText = runner.isRunning ? strings.quitAlertTitle : strings.quitAlertDailyTitle
+            alert.informativeText = [runner.isRunning ? strings.quitAlertBody : nil,
+                                     dailyRunner.isRunning ? strings.quitAlertDailyBody : nil]
+                .compactMap { $0 }.joined(separator: " ")
             alert.addButton(withTitle: strings.quit)
             alert.addButton(withTitle: strings.cancel)
             guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -156,6 +182,14 @@ final class AppModel: ObservableObject {
         reloadSuggestions()
         reloadRuns()
         reloadUsage()
+        reloadDaily()
+    }
+
+    private func reloadDaily() {
+        let latest = DailyStore.latest(paths.dailies)
+        if latest != daily { daily = latest }
+        let run = DailyStore.lastRun(paths.dailies)
+        if run != dailyRun { dailyRun = run }
     }
 
     private func reload(_ changed: Set<String>) {
@@ -367,6 +401,46 @@ final class AppModel: ObservableObject {
             notifier.post(.endedWithoutRecord(exitCode: finished.exitCode, strings: strings))
         }
         recomputeSchedule()
+    }
+
+    // MARK: Daily
+
+    func generateDaily() {
+        guard !dailyRunner.isRunning else { return }
+        do {
+            try dailyRunner.start(trigger: .manual, provider: settings.provider)
+            dailyStartedAt = Date()
+        } catch {
+            AppEnvironment.log("daily did not start: \(error)")
+            actionError = .startDaily(detail: Self.describe(error))
+        }
+    }
+
+    func stopDaily() {
+        guard dailyRunner.terminate() != nil else { return }
+        dailyStartedAt = nil
+    }
+
+    func copyDaily() {
+        guard let text = daily?.text else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func dailyFinished(_ finished: Runner.Finished) {
+        dailyStartedAt = nil
+        reloadDaily()
+        // run_daily.sh stamps whole seconds, so its start can read up to a second before the spawn.
+        let earliest = finished.spawnedAt.addingTimeInterval(-1)
+        guard let run = dailyRun, let started = ISODate.parse(run.startedAt), started >= earliest else {
+            if finished.exitCode != 0 { notifier.post(NotificationText(title: strings.dailyFailed, body: "exit code \(finished.exitCode)")) }
+            return
+        }
+        if run.succeeded {
+            if settings.notifyOnSuccess { notifier.post(NotificationText(title: strings.dailyReady)) }
+        } else {
+            notifier.post(NotificationText(title: strings.dailyFailed, body: run.reason ?? run.result.rawValue))
+        }
     }
 
     // MARK: Suggestions

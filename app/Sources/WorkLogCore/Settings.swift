@@ -116,6 +116,30 @@ public struct AppSettings: Codable, Equatable {
         }
     }
 
+    // Inputs of the daily stand-up draft. Empty values make daily_context.py skip or widen that source.
+    public struct DailySettings: Codable, Equatable {
+        public var githubAccounts: [String]
+        public var githubOwners: [String]
+        public var standupChannel: String?
+        public var jiraMcpServer: String?
+
+        public init(githubAccounts: [String] = [], githubOwners: [String] = [], standupChannel: String? = nil,
+                    jiraMcpServer: String? = nil) {
+            self.githubAccounts = githubAccounts
+            self.githubOwners = githubOwners
+            self.standupChannel = standupChannel
+            self.jiraMcpServer = jiraMcpServer
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            githubAccounts = try c.decodeIfPresent([String].self, forKey: .githubAccounts) ?? []
+            githubOwners = try c.decodeIfPresent([String].self, forKey: .githubOwners) ?? []
+            standupChannel = try c.decodeIfPresent(String.self, forKey: .standupChannel)
+            jiraMcpServer = try c.decodeIfPresent(String.self, forKey: .jiraMcpServer)
+        }
+    }
+
     public var version: Int
     public var schedule: Schedule
     public var provider: Provider
@@ -129,10 +153,12 @@ public struct AppSettings: Codable, Equatable {
     // Scheduled runs spend money, so a fresh install waits for the user to start the schedule.
     public var scheduleEnabled: Bool
     public var slack: Slack?
+    public var daily: DailySettings
 
     public init(
         version: Int, schedule: Schedule, provider: Provider, logFolder: String, logLanguage: Language, appLanguage: Language,
-        sessionFolders: [String], launchAtLogin: Bool, notifyOnSuccess: Bool, scheduleEnabled: Bool, slack: Slack?
+        sessionFolders: [String], launchAtLogin: Bool, notifyOnSuccess: Bool, scheduleEnabled: Bool, slack: Slack?,
+        daily: DailySettings = DailySettings()
     ) {
         self.version = version
         self.schedule = schedule
@@ -145,6 +171,7 @@ public struct AppSettings: Codable, Equatable {
         self.notifyOnSuccess = notifyOnSuccess
         self.scheduleEnabled = scheduleEnabled
         self.slack = slack
+        self.daily = daily
     }
 
     public static let defaults = AppSettings(
@@ -182,5 +209,6 @@ public struct AppSettings: Codable, Equatable {
         // schedule was already running; a file without it was created by the collector before the app ever saved.
         scheduleEnabled = try c.decodeIfPresent(Bool.self, forKey: .scheduleEnabled) ?? c.contains(.version)
         slack = try c.decodeIfPresent(Slack.self, forKey: .slack)
+        daily = try c.decodeIfPresent(DailySettings.self, forKey: .daily) ?? d.daily
     }
 }

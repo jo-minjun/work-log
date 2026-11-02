@@ -100,6 +100,32 @@ public struct UIStrings {
     public let slackNotChecked: String
     public let slackChecked: (_ who: String, _ relativeTime: String) -> String
 
+    // Daily
+    public let tabDaily: String
+    public let dailyTitle: (String) -> String
+    public let generatedAt: (String) -> String
+    public let generateNow: String
+    public let stop: String
+    public let copy: String
+    public let copied: String
+    public let evidenceCount: (Int) -> String
+    public let weak: String
+    public let noDaily: String
+    public let dailyRunFailed: (String) -> String
+    public let dailyReady: String
+    public let dailyFailed: String
+    public let quitAlertDailyTitle: String
+    public let quitAlertDailyBody: String
+
+    // Settings: daily
+    public let dailySection: String
+    public let githubAccounts: String
+    public let githubOwners: String
+    public let standupChannel: String
+    public let jiraMcpServer: String
+    public let commaSeparated: String
+    public let dailySettingsNote: String
+
     // Errors and banners
     public let settingsUnreadable: (String) -> String
     public let suggestionsUnreadable: (String) -> String
@@ -210,6 +236,28 @@ public struct UIStrings {
         remove: { "Remove \($0)" },
         slackNotChecked: "Checked on next collection",
         slackChecked: { who, relativeTime in "\(who) · checked \(relativeTime)" },
+        tabDaily: "Daily",
+        dailyTitle: { "\($0) Daily" },
+        generatedAt: { "Generated \($0)" },
+        generateNow: "Generate now",
+        stop: "Stop",
+        copy: "Copy",
+        copied: "Copied",
+        evidenceCount: { "Evidence (\($0))" },
+        weak: "weak",
+        noDaily: "No daily yet. Generate one here, or run /daily in Claude Code.",
+        dailyRunFailed: { "The daily was not generated: \($0)" },
+        dailyReady: "Daily ready",
+        dailyFailed: "Daily failed",
+        quitAlertDailyTitle: "A daily is being generated",
+        quitAlertDailyBody: "Quitting stops it.",
+        dailySection: "Daily",
+        githubAccounts: "GitHub accounts",
+        githubOwners: "GitHub owners",
+        standupChannel: "Stand-up Slack channel",
+        jiraMcpServer: "Jira MCP server",
+        commaSeparated: "Comma-separated",
+        dailySettingsNote: "No accounts uses the active gh account. No owners searches everywhere. No channel or server skips that source.",
         settingsUnreadable: { "settings.json could not be read: \($0)" },
         suggestionsUnreadable: { "suggestions.json could not be read: \($0)" },
         couldNotBackUp: { file, detail in "Could not back up \(file): \(detail)" },
@@ -309,6 +357,28 @@ public struct UIStrings {
         remove: { "\($0) 삭제" },
         slackNotChecked: "다음 수집 때 확인",
         slackChecked: { who, relativeTime in "\(who) · \(relativeTime) 확인" },
+        tabDaily: "데일리",
+        dailyTitle: { "\($0) 데일리" },
+        generatedAt: { "\($0) 생성" },
+        generateNow: "지금 생성",
+        stop: "중지",
+        copy: "복사",
+        copied: "복사됨",
+        evidenceCount: { "할 일 근거 (\($0))" },
+        weak: "약함",
+        noDaily: "아직 데일리가 없습니다. 여기서 생성하거나 Claude Code에서 /daily를 실행하세요.",
+        dailyRunFailed: { "데일리를 생성하지 못했습니다: \($0)" },
+        dailyReady: "데일리 생성 완료",
+        dailyFailed: "데일리 생성 실패",
+        quitAlertDailyTitle: "데일리를 생성하는 중입니다",
+        quitAlertDailyBody: "종료하면 생성이 멈춥니다.",
+        dailySection: "데일리",
+        githubAccounts: "GitHub 계정",
+        githubOwners: "GitHub 조직",
+        standupChannel: "Standup Slack 채널",
+        jiraMcpServer: "Jira MCP 서버 이름",
+        commaSeparated: "쉼표로 구분",
+        dailySettingsNote: "계정을 비우면 활성 gh 계정을 씁니다. 조직을 비우면 제한 없이 찾습니다. 채널이나 서버를 비우면 그 출처를 건너뜁니다.",
         settingsUnreadable: { "settings.json을 읽을 수 없습니다: \($0)" },
         suggestionsUnreadable: { "suggestions.json을 읽을 수 없습니다: \($0)" },
         couldNotBackUp: { file, detail in "백업할 수 없습니다 (\(file)): \(detail)" },

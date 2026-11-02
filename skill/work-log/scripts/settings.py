@@ -11,7 +11,7 @@ import argparse
 import json
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -36,6 +36,14 @@ class SettingsError(Exception):
 
 
 @dataclass(frozen=True)
+class DailySettings:
+    github_accounts: list[str] = field(default_factory=list)
+    github_owners: list[str] = field(default_factory=list)
+    standup_channel: str | None = None
+    jira_mcp_server: str | None = None
+
+
+@dataclass(frozen=True)
 class Settings:
     log_folder: Path
     log_language: str
@@ -45,6 +53,7 @@ class Settings:
     tz: ZoneInfo
     # run.sh creates only the default folder when it is missing; a folder the user chose must already exist
     log_folder_is_default: bool = False
+    daily: DailySettings = field(default_factory=DailySettings)
 
 
 def system_timezone() -> ZoneInfo:
@@ -80,6 +89,30 @@ def _typed(raw: dict, key: str, kind: type, default):
     return value
 
 
+def _string_list(raw: dict, key: str, where: str) -> list[str]:
+    value = _typed(raw, key, list, [])
+    if not all(isinstance(v, str) for v in value):
+        raise SettingsError(f"settings.json: {where} must be a list of strings")
+    return value
+
+
+def _optional_string(raw: dict, key: str, where: str) -> str | None:
+    value = raw.get(key)
+    if value is not None and not isinstance(value, str):
+        raise SettingsError(f"settings.json: {where} must be str")
+    return value or None
+
+
+def _load_daily(raw: dict) -> DailySettings:
+    daily = _typed(raw, "daily", dict, {})
+    return DailySettings(
+        github_accounts=_string_list(daily, "githubAccounts", "daily.githubAccounts"),
+        github_owners=_string_list(daily, "githubOwners", "daily.githubOwners"),
+        standup_channel=_optional_string(daily, "standupChannel", "daily.standupChannel"),
+        jira_mcp_server=_optional_string(daily, "jiraMcpServer", "daily.jiraMcpServer"),
+    )
+
+
 def load_settings(path: Path = DEFAULT_SETTINGS_PATH) -> Settings:
     raw = _read_raw(path)
     language = _typed(raw, "logLanguage", str, "en")
@@ -104,6 +137,7 @@ def load_settings(path: Path = DEFAULT_SETTINGS_PATH) -> Settings:
         slack_user_id=user_id,
         tz=system_timezone(),
         log_folder_is_default=log_folder == Path(DEFAULT_LOG_FOLDER).expanduser(),
+        daily=_load_daily(raw),
     )
 
 
@@ -137,6 +171,12 @@ def main() -> int:
                 "sessionFolders": [str(p) for p in s.session_folders],
                 "provider": s.provider,
                 "slackUserId": s.slack_user_id,
+                "daily": {
+                    "githubAccounts": s.daily.github_accounts,
+                    "githubOwners": s.daily.github_owners,
+                    "standupChannel": s.daily.standup_channel,
+                    "jiraMcpServer": s.daily.jira_mcp_server,
+                },
             }, ensure_ascii=False, indent=2))
         else:
             set_slack(args.settings, args.user_id, args.display_name, datetime.now(system_timezone()))

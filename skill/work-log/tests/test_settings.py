@@ -52,6 +52,30 @@ class SettingsTest(unittest.TestCase):
         with self.assertRaises(SettingsError):
             load_settings(self.path)
 
+    def test_missing_daily_group_gives_defaults(self):
+        daily = load_settings(self.path).daily
+        self.assertEqual((daily.github_accounts, daily.github_owners), ([], []))
+        self.assertIsNone(daily.standup_channel)
+        self.assertIsNone(daily.jira_mcp_server)
+
+    def test_daily_group_is_read_and_shown(self):
+        self.path.write_text(json.dumps({"daily": {
+            "githubAccounts": ["work-account"], "githubOwners": ["acme", "acme-labs"],
+            "standupChannel": "daily-standup", "jiraMcpServer": "atlassian"}}), encoding="utf-8")
+        r = subprocess.run([sys.executable, str(SCRIPTS / "settings.py"), "show", "--settings", str(self.path)],
+                           capture_output=True, text=True, env=cli_env(self.base))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["daily"], {
+            "githubAccounts": ["work-account"], "githubOwners": ["acme", "acme-labs"],
+            "standupChannel": "daily-standup", "jiraMcpServer": "atlassian"})
+
+    def test_invalid_daily_values_raise(self):
+        for daily in ({"githubAccounts": "work-account"}, {"githubOwners": [1]}, {"standupChannel": 3}, []):
+            with self.subTest(daily=daily):
+                self.path.write_text(json.dumps({"daily": daily}), encoding="utf-8")
+                with self.assertRaises(SettingsError):
+                    load_settings(self.path)
+
     def test_set_slack_preserves_other_keys(self):
         self.path.write_text(json.dumps({"schedule": {"mode": "interval"}, "custom": 1}), encoding="utf-8")
         set_slack(self.path, "U1", "Name", datetime(2026, 10, 29, 9, 0, tzinfo=timezone.utc))

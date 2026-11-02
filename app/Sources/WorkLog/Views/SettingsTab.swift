@@ -30,6 +30,7 @@ struct SettingsTab: View {
                     Spacer()
                     Text(model.slackStatus).font(.caption).foregroundStyle(model.settings.slack?.userId == nil ? .secondary : .primary)
                 }
+                daily
                 switchRow(s.launchAtLogin, model.binding(\.launchAtLogin))
                 switchRow(s.notifyOnFinish, model.binding(\.notifyOnSuccess))
             }
@@ -157,6 +158,36 @@ struct SettingsTab: View {
         }
     }
 
+    private var daily: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(s.dailySection).bold()
+            Muted(s.dailySettingsNote)
+            CommitField(title: s.githubAccounts, prompt: s.commaSeparated,
+                        value: model.settings.daily.githubAccounts.joined(separator: ", ")) { text in
+                model.updateSettings { $0.daily.githubAccounts = Self.list(text) }
+            }
+            CommitField(title: s.githubOwners, prompt: s.commaSeparated,
+                        value: model.settings.daily.githubOwners.joined(separator: ", ")) { text in
+                model.updateSettings { $0.daily.githubOwners = Self.list(text) }
+            }
+            CommitField(title: s.standupChannel, prompt: "", value: model.settings.daily.standupChannel ?? "") { text in
+                model.updateSettings { $0.daily.standupChannel = Self.optional(text) }
+            }
+            CommitField(title: s.jiraMcpServer, prompt: "atlassian", value: model.settings.daily.jiraMcpServer ?? "") { text in
+                model.updateSettings { $0.daily.jiraMcpServer = Self.optional(text) }
+            }
+        }
+    }
+
+    private static func list(_ text: String) -> [String] {
+        text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+
+    private static func optional(_ text: String) -> String? {
+        let value = text.trimmingCharacters(in: .whitespaces)
+        return value.isEmpty ? nil : value
+    }
+
     private var appLanguage: some View {
         HStack {
             Text(s.appLanguage).bold()
@@ -198,6 +229,35 @@ struct SettingsTab: View {
     private func addButton(_ action: @escaping () -> Void) -> some View {
         Button(action: action) { Image(systemName: "plus").font(.caption) }
             .accessibilityLabel(s.add)
+    }
+}
+
+// Saves when the user presses Return or leaves the field, so settings.json is not rewritten on every keystroke.
+private struct CommitField: View {
+    let title: String
+    let prompt: String
+    let value: String
+    let commit: (String) -> Void
+    @State private var draft = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack {
+            Text(title).font(.caption)
+            Spacer()
+            TextField(title, text: $draft, prompt: Text(prompt))
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .font(.caption)
+                .frame(width: 150)
+                .focused($focused)
+                .onSubmit { commit(draft) }
+        }
+        .onAppear { draft = value }
+        // Switching tabs or closing the menu bar window removes the field without moving focus
+        .onDisappear { commit(draft) }
+        .onChange(of: value) { _, new in if !focused { draft = new } }
+        .onChange(of: focused) { _, isFocused in if !isFocused { commit(draft) } }
     }
 }
 

@@ -26,13 +26,22 @@ fi
 
 REPO_ROOT="${0:A:h}"
 SKILL_DIR="$REPO_ROOT/skill/work-log"
+DAILY_SKILL_DIR="$REPO_ROOT/skill/daily"
 TEMPLATE="$REPO_ROOT/app/Resources/Info.plist.template"
 # Codex reads user skills from ~/.agents/skills and Claude Code from ~/.claude/skills; both link straight to the repo
-LINKS=("$HOME/.agents/skills/work-log" "$HOME/.claude/skills/work-log")
+# Link and target pairs, in the order they are checked and created
+LINK_PAIRS=(
+  "$HOME/.agents/skills/work-log" "$SKILL_DIR"
+  "$HOME/.claude/skills/work-log" "$SKILL_DIR"
+  "$HOME/.agents/skills/daily" "$DAILY_SKILL_DIR"
+  "$HOME/.claude/skills/daily" "$DAILY_SKILL_DIR"
+)
 APP="$PREFIX/WorkLog.app"
 LOCK_DIR="${WORKLOG_LOG_DIR:-$HOME/Library/Logs/work-log}/.lock"
 
-[[ -d "$SKILL_DIR" ]] || { echo "error: skill directory not found: $SKILL_DIR" >&2; exit 1; }
+for dir in "$SKILL_DIR" "$DAILY_SKILL_DIR"; do
+  [[ -d "$dir" ]] || { echo "error: skill directory not found: $dir" >&2; exit 1; }
+done
 [[ -f "$TEMPLATE" ]] || { echo "error: template not found: $TEMPLATE" >&2; exit 1; }
 
 xml_escape() {
@@ -79,9 +88,9 @@ echo "Requires Python 3.11 or newer as python3: found $("${run_env[@]}" 'source 
 echo "==> Checking skill links"
 # Every link is checked before anything is changed, so a refusal leaves both places as they were
 typeset -A LINK_ACTIONS
-for link in "${LINKS[@]}"; do
+for link target in "${LINK_PAIRS[@]}"; do
   if [[ -L "$link" ]]; then
-    [[ "$(readlink "$link")" == "$SKILL_DIR" ]] && LINK_ACTIONS[$link]=keep || LINK_ACTIONS[$link]=replace
+    [[ "$(readlink "$link")" == "$target" ]] && LINK_ACTIONS[$link]=keep || LINK_ACTIONS[$link]=replace
   elif [[ -e "$link" ]]; then
     echo "error: $link exists and is not a symlink; move it away and re-run. Nothing was changed." >&2
     exit 1
@@ -140,13 +149,13 @@ mkdir -p "$PREFIX"
 rm -rf "$APP"
 mv "$STAGED_APP" "$APP"
 
-for link in "${LINKS[@]}"; do
+for link target in "${LINK_PAIRS[@]}"; do
   action="${LINK_ACTIONS[$link]}"
   echo "==> Skill link $link ($action)"
   [[ "$action" == replace ]] && echo "Previous link target: $(readlink "$link")"
   if [[ "$action" != keep ]]; then
     mkdir -p "${link:h}"
-    ln -sfn "$SKILL_DIR" "$link"
+    ln -sfn "$target" "$link"
   fi
 done
 

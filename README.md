@@ -12,8 +12,9 @@ It writes them by date and project into a monthly Markdown log. Use the log as e
 
 The repo has two parts:
 
-- **WorkLog.app**: a macOS menu bar app. It schedules runs, offers Run now, shows the run history and usage, and asks you about new-project suggestions.
+- **WorkLog.app**: a macOS menu bar app. It schedules runs, offers Run now, shows the run history and usage, asks you about new-project suggestions, and generates your daily stand-up draft.
 - **`skill/work-log`**: the skill and its Python scripts. You can also run the skill by hand (`/work-log` in Claude Code, `$work-log` in Codex).
+- **`skill/daily`**: writes a stand-up draft from the log and other sources (`/daily`, `$daily`). See [Daily stand-up](#daily-stand-up).
 
 <p align="center">
   <img src="docs/images/suggestions.png" width="260" alt="Suggestions tab">
@@ -48,11 +49,11 @@ If you already have a clone, run `./install.sh` in it instead.
 1. It checks that `python3` on the run PATH is 3.11 or newer, and stops if not.
 2. It records the folders of `python3`, `claude` and `codex` from your shell. The app starts runs without a login shell, so it needs these folders.
 3. It builds the app in release mode, signs it ad hoc and installs it as `~/Applications/WorkLog.app`.
-4. It links the skill into both agents' user skill folders, each link pointing straight at `<repo>/skill/work-log`:
-   - `~/.claude/skills/work-log` for Claude Code
-   - `~/.agents/skills/work-log` for Codex
+4. It links both skills into both agents' user skill folders, each link pointing straight at the repo:
+   - `~/.claude/skills/work-log` and `~/.claude/skills/daily` for Claude Code
+   - `~/.agents/skills/work-log` and `~/.agents/skills/daily` for Codex
 
-   A link that already points at the repo is kept. A link that points elsewhere is replaced, and its previous target is printed. If a real file or folder is at either place, the installer stops before changing anything.
+   The `work-log` links point at `<repo>/skill/work-log`, the `daily` links at `<repo>/skill/daily`. A link that already points at the repo is kept. A link that points elsewhere is replaced, and its previous target is printed. If a real file or folder is at any of the four places, the installer stops before changing anything.
 5. It opens the app.
 
 Options:
@@ -87,9 +88,13 @@ Keep the clone where it is (`~/.local/share/work-log`, or your own clone): the a
 | App language | English | UI language of the app; independent of Log language |
 | Log language | English | English or Korean. See [Log language](#log-language) |
 | Launch at login | on | |
-| Notify when a collection finishes | on | Failures and new suggestions are always notified |
+| Notify when a collection finishes | on | Failures and new suggestions are always notified. Also covers "Daily ready" |
+| Daily: GitHub accounts | empty (active `gh` account) | `gh` accounts whose PRs count, comma-separated. Each search uses that account's token; WorkLog never runs `gh auth switch` |
+| Daily: GitHub owners | empty (no filter) | Organizations or users to search in, comma-separated |
+| Daily: Stand-up Slack channel | empty (skipped) | The channel where you post dailies; your last post carries over unfinished tasks |
+| Daily: Jira MCP server | empty (skipped) | The name of an Atlassian MCP server you added to Claude Code, for example `atlassian` |
 
-Settings live in `settings.json` in the data folder. The app owns the schedule and app keys. The collector writes only the `slack` block.
+Settings live in `settings.json` in the data folder. The app owns the schedule, app and `daily` keys. The collector writes only the `slack` block.
 
 ## What a run does
 
@@ -137,6 +142,23 @@ When related work keeps landing in `Other`, the run proposes a new project. A to
 
 When a topic fits a project that already exists, the run extends that project's description and moves the items. It does not ask.
 
+## Daily stand-up
+
+The Daily tab shows your latest stand-up draft and copies it with **Copy**. **Generate now** runs the `daily` skill headless (at most 15 minutes); **Stop** ends it. Running `/daily` in Claude Code saves a draft too, and the tab picks it up.
+
+A draft has two parts, grouped by project:
+
+- **Done**: what you did since the last stand-up. The range starts at the latest weekday before today that has a log section, so on a Monday it covers Friday to Sunday.
+- **To do**: 5–8 recommended tasks. Work others wait for comes first (questions to you, review requests, decisions due), then the next step of work in progress (open PRs, branches with commits but no PR), then Jira issues.
+
+The evidence for each task is under **Evidence**. A task with weak evidence stays in the list and is marked there. Sources that failed or are not set up are listed under the notes.
+
+The skill reads the log, GitHub (`gh search prs`), the git state of the repositories your recent sessions worked in, Slack and, when set up, Jira. It fills hours the last collection did not cover from Slack and GitHub, so no collection is needed first. It never posts, changes Jira or GitHub, or writes the log.
+
+The range also never starts before the last saved draft, so a day the collector missed does not bring back work you already reported. Like `/work-log`, a session that runs `/daily` is left out of the collection, so run it in a new session.
+
+Drafts are saved as `dailies/<date>.json` in the data folder. A new draft on the same day replaces the old one; drafts older than 30 days are deleted.
+
 ## Usage display
 
 The usage area toggles between two views:
@@ -172,7 +194,8 @@ The values update only while an interactive Claude Code session is open, so the 
 | Location | Contents |
 |---|---|
 | `~/Library/Application Support/WorkLog/` | `settings.json`, `suggestions.json` (and its `.lock`), `runs.jsonl` (run history), `state.json` (last completed day), `claude-rate-limits.json` |
-| `~/Library/Logs/work-log/` | `run.log` and `app-runner.log` (text logs), one `<date-time>.json` (agent output, including the transcript) and `.err` per run, and `.lock` while a run is active |
+| `~/Library/Application Support/WorkLog/dailies/` | One `<date>.json` per daily stand-up draft, and `last-run.json` (the last Generate now) |
+| `~/Library/Logs/work-log/` | `run.log` and `app-runner.log` (text logs), one `<date-time>.json` (agent output, including the transcript) and `.err` per run, and `.lock` while a run is active. Daily runs use `daily.log`, `daily-<date-time>.json`/`.err` and `.daily-lock` |
 | Log folder (default `~/WorkLog`) | The month files and the project list |
 
 Both WorkLog folders are owner-only (0700) and their files are 0600. The per-run `.json` and `.err` files are deleted after 7 days. `run.log` and `app-runner.log` are cut to their last 1000 lines once they pass 1 MB. Each run works in a fresh temporary folder that is deleted when the run ends or is stopped.
@@ -185,6 +208,8 @@ Both WorkLog folders are owner-only (0700) and their files are 0600. The per-run
 | `WORKLOG_LOG_DIR` | Replaces the logs folder |
 | `WORKLOG_EXTRA_PATH` | Folders put in front of the default run PATH. `install.sh` writes it into the app's Info.plist (`WorkLogExtraPath`) |
 | `WORKLOG_PATH` | Replaces the run PATH entirely. Meant for tests |
+| `WORKLOG_CLAUDE_PROJECTS` | Replaces `~/.claude/projects` for `daily_context.py`. Meant for tests |
+| `WORKLOG_DAILY_TIMEOUT_SEC` | Replaces the 15-minute limit of a daily run. Meant for tests |
 | `WORKLOG_INSTALL_DIR` | Folder `bootstrap.sh` clones into (default `~/.local/share/work-log`) |
 | `WORKLOG_REPO_URL` | Repo `bootstrap.sh` clones (default `https://github.com/jo-minjun/work-log.git`). Meant for forks and tests |
 
@@ -198,6 +223,7 @@ Codex runs as `codex exec --json --sandbox workspace-write` in a fresh temporary
 - **No MCP restriction.** WorkLog has no allow list for Codex. A Codex run can call every MCP tool you configured for Codex, including Slack tools that send messages.
 - **Sessions are kept.** Codex keeps its session files (raw transcripts) in `~/.codex/sessions` indefinitely. WorkLog does not pass `--ephemeral`, because it reads usage from those files.
 - **Codex reports no cost**, only tokens.
+- **Daily GitHub lookups.** The `workspace-write` sandbox has no network by default, so under Codex the daily's GitHub source usually ends as failed.
 
 **When Slack is unavailable** (with either provider), a run writes only the first pending day, with sessions only and a warning, and then stops. The day is completed, so with a lasting Slack failure each run moves the backlog forward by one day. These runs are recorded as succeeded with warnings, and the menu bar shows an orange dot. Fix Slack access, then collect the affected days again by hand.
 
@@ -209,10 +235,18 @@ Codex runs as `codex exec --json --sandbox workspace-write` in a fresh temporary
   - `Edit` in the log folder and the run's temporary folder only
   - the `work-log` skill
   - three read-only Slack tools: search, read thread, read profile
+- **Headless daily permissions.** Generate now uses the same mode with its own, narrower list:
+  - `python3 <skill>/scripts/daily.py save` and `daily.py show`, by absolute path
+  - `Read` and `Edit` in the run's temporary folder only, and the `daily` skill
+  - four read-only Slack tools: search, read thread, read profile, read channel
+  - with a Jira MCP server set, its read tools only (`atlassianUserInfo`, `getAccessibleAtlassianResources`, `searchJiraIssuesUsingJql`, `getJiraIssue`). The server name may hold only letters, digits, `_` and `-`, and no `__`
+  - denied even if your own settings allow them: `WebFetch`, `WebSearch`, and `curl`, `wget`, `gh`, `git`, `nc`, `ssh` in Bash. This list is not complete
+- **Daily facts are collected before the agent starts.** `run_daily.sh` runs `daily_context.py` itself and hands the agent the result as a file. The script runs `git` in the folders of your recent sessions and `gh` with your tokens, so the agent cannot run it or choose its inputs, and `git` runs with `core.fsmonitor` turned off. A GitHub token goes to one `gh` call through `GH_TOKEN` and is never printed or saved.
+- **A daily is meant to be pasted.** Text injected into Slack, a PR title or a Jira issue could make the agent put something into the draft that you would not post. Read a draft before you paste it into a channel.
 - **Your own Claude Code settings still apply.** Allow rules, hooks, plugins and MCP servers from `~/.claude/settings.json` are merged in. `dontAsk` only denies what nothing allows.
-- **`Read` is unscoped.** Text injected into a Slack message could make the agent read local files. The outward paths are narrow: no web access, no other shell commands, no writes outside the two folders, read-only Slack. What the agent read could still reach the log folder (which iCloud may sync) or the run's `.json` transcript, which is kept 7 days.
+- **In a collection, `Read` is unscoped.** Text injected into a Slack message could make the agent read local files. Unless your own settings allow more, the outward paths are narrow: no web access, no other shell commands, no writes outside the two folders, read-only Slack. What the agent read could still reach the log folder (which iCloud may sync) or the run's `.json` transcript, which is kept 7 days.
 - **Prompt injection.** The skill treats every collected text (Slack messages, session prompts, the project list) as data, and never follows instructions, commands or URLs in it.
-- **Secret scanning.** `write_day.py day` and `suggestions.py propose` refuse values that look like credentials and exit with code 4. Examples are Slack and GitHub tokens, AWS keys, `sk-` keys, JWTs, private keys, and URLs with signature, token, key or password query values. The scan is pattern-based and cannot catch every secret.
+- **Secret scanning.** `write_day.py day`, `suggestions.py propose` and `daily.py save` refuse values that look like credentials and exit with code 4. Examples are Slack and GitHub tokens, AWS keys, `sk-` keys, JWTs, private keys, and URLs with signature, token, key or password query values. The scan is pattern-based and cannot catch every secret.
 - **Path flags.** The allowed scripts accept `--settings`, `--state` and `--file` path options. An agent could use them to create a file with a fixed name (such as `settings.json` or `state.json`) in another writable folder. The risk is low: the content is WorkLog's own data, not chosen by the agent.
 
 ## Sleep and missed runs
@@ -233,10 +267,10 @@ cd app && WORKLOG_SKILL_PATH="$PWD/../skill/work-log" swift run WorkLog   # the 
 
 1. Quit WorkLog from its window. If a run is in progress, the app asks first.
 2. Remove it from System Settings → General → Login Items, or turn off **Launch at login** before quitting.
-3. Delete the app and the two skill links:
+3. Delete the app and the four skill links:
    ```sh
    rm -rf ~/Applications/WorkLog.app      # or <prefix>/WorkLog.app
-   rm ~/.claude/skills/work-log ~/.agents/skills/work-log
+   rm ~/.claude/skills/work-log ~/.agents/skills/work-log ~/.claude/skills/daily ~/.agents/skills/daily
    ```
 4. Delete the data and log folders:
    ```sh

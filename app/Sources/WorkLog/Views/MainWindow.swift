@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MainWindow: View {
     enum Tab: Hashable {
-        case suggestions, history, settings
+        case suggestions, daily, history, settings
     }
 
     private static let width: CGFloat = 340
@@ -27,6 +27,7 @@ struct MainWindow: View {
                 Group {
                     switch tab {
                     case .suggestions: SuggestionsTab(model: model)
+                    case .daily: DailyTab(model: model)
                     case .history: HistoryTab(model: model)
                     case .settings: SettingsTab(model: model)
                     }
@@ -67,6 +68,7 @@ struct MainWindow: View {
     private var tabBar: some View {
         HStack(spacing: 4) {
             tabButton(.suggestions, model.strings.tabSuggestions, badge: model.pendingSuggestions.count)
+            tabButton(.daily, model.strings.tabDaily)
             tabButton(.history, model.strings.tabHistory)
             tabButton(.settings, model.strings.tabSettings)
         }

@@ -5,7 +5,8 @@ struct RunnerError: LocalizedError {
     let errorDescription: String?
 }
 
-// Runs run.sh one at a time. run.sh writes the runs.jsonl line; the Runner only reports when the process ends.
+// Runs one script (run.sh or run_daily.sh) one run at a time. The script records its own result;
+// the Runner only reports when the process ends.
 @MainActor
 final class Runner {
     struct Finished {
@@ -21,11 +22,15 @@ final class Runner {
     }
 
     private let paths: AppPaths
+    private let script: URL?
+    private let lockDir: URL
     private var current: Current?
     var onFinish: ((Finished) -> Void)?
 
-    init(paths: AppPaths) {
+    init(paths: AppPaths, script: URL?, lockDir: URL) {
         self.paths = paths
+        self.script = script
+        self.lockDir = lockDir
     }
 
     var isRunning: Bool { current != nil }
@@ -33,8 +38,8 @@ final class Runner {
     func start(trigger: RunRecord.Trigger, provider: AppSettings.Provider) throws {
         guard !isRunning else { return }
         // zsh reads the script, so it does not need the executable bit.
-        guard let script = paths.runScript, FileManager.default.fileExists(atPath: script.path) else {
-            throw RunnerError(errorDescription: "run.sh not found. Check the skill path (\(paths.runScript?.path ?? "not set")).")
+        guard let script, FileManager.default.fileExists(atPath: script.path) else {
+            throw RunnerError(errorDescription: "\(script?.lastPathComponent ?? "The run script") not found. Check the skill path (\(script?.path ?? "not set")).")
         }
         try FileManager.default.createDirectory(at: paths.logDir, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: AppPaths.privateDirectoryMode])
@@ -53,13 +58,13 @@ final class Runner {
         }
     }
 
-    // On SIGTERM run.sh removes only its working directory, so the app removes the lock here and the next run can start at once.
+    // On SIGTERM the script removes only its working directory, so the app removes the lock here and the next run can start at once.
     // Returns the stopped run once; a second call (quit, then applicationWillTerminate) does nothing.
     func terminate() -> Current? {
         guard let stopped = current else { return nil }
         current = nil
         ProcessGroup.terminate(stopped.pid)
-        try? FileManager.default.removeItem(at: paths.lockDir)
+        try? FileManager.default.removeItem(at: lockDir)
         return stopped
     }
 

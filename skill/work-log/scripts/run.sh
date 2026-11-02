@@ -38,8 +38,6 @@ out="$LOG_DIR/$stamp.json"
 err="$LOG_DIR/$stamp.err"
 
 log() { echo "$stamp $1" >> "$RUN_LOG"; }
-# ISO-8601 with a colon in the offset, seconds precision
-iso_now() { date +%Y-%m-%dT%H:%M:%S%z | sed -E 's/([0-9]{2})$/:\1/'; }
 
 # Keeps the last lines of a text log that grew past the size limit. It truncates in place because the app
 # holds app-runner.log open in append mode as this script's output.
@@ -79,13 +77,6 @@ record() {
   worklog_py "$SCRIPTS_DIR/runlog.py" "${args[@]}" 2>>"$err" || { log "run record write failed"; return 1; }
 }
 fail() { log "failed: $1"; record failed "$1" "${2:-}"; exit 1; }
-
-# The provider may change anything under the log folder, so it must not contain the home folder or WorkLog's data.
-# The rejected set lives in this one function.
-log_folder_is_dedicated() {
-  local folder="${1:A}"
-  [[ "$folder" != / && "$folder" != "${HOME:A}" && "${DATA_DIR:A}/" != "$folder/"* ]]
-}
 
 settings=("${(@f)$(worklog_py "$SCRIPTS_DIR/settings.py" show 2>>"$err" | python3 -I -c '
 import json, sys
@@ -133,7 +124,7 @@ if [[ "$provider" == codex ]]; then
     codex exec --json --sandbox workspace-write --add-dir "$log_folder" --add-dir "$DATA_DIR" \
     --skip-git-repo-check '$work-log' >"$out" 2>>"$err"
 else
-  # dontAsk denies every tool call these rules do not cover, whatever the user's own permission settings say
+  # dontAsk denies every tool call that neither these rules nor the user's own allow rules cover
   allowed=(Read "Skill(work-log)" "${SLACK_TOOLS[@]}")
   for script in "${COLLECTOR_SCRIPTS[@]}"; do
     allowed+=("Bash(python3 $SCRIPTS_DIR/$script.py:*)")

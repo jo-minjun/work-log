@@ -2,3 +2,5 @@
 __pycache__/
 .superpowers/
 *.app
+# A daily payload holds Slack text; /daily must not leave one in a repository
+daily-payload*.json

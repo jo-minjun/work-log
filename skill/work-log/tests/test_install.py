@@ -85,29 +85,36 @@ class InstallLinksTest(InstallBase):
         self.stub("swift", f'case "$*" in *--show-bin-path*) echo "{build}";; esac\nexit 0\n')
         self.stub("codesign", "exit 0\n")
         self.apps = self.tmp / "Apps"
-        self.links = [self.home / ".agents" / "skills" / "work-log", self.home / ".claude" / "skills" / "work-log"]
+        daily = SKILL_ROOT.parent / "daily"
+        self.targets = {
+            self.home / ".agents" / "skills" / "work-log": SKILL_ROOT,
+            self.home / ".claude" / "skills" / "work-log": SKILL_ROOT,
+            self.home / ".agents" / "skills" / "daily": daily,
+            self.home / ".claude" / "skills" / "daily": daily,
+        }
+        self.links = list(self.targets)
 
     def test_both_links_are_created_and_a_rerun_keeps_them(self):
         r = self.install("--prefix", str(self.apps))
         self.assertEqual(r.returncode, 0, r.stderr)
         for link in self.links:
             self.assertTrue(link.is_symlink(), link)
-            self.assertEqual(Path(os.readlink(link)), SKILL_ROOT)
+            self.assertEqual(Path(os.readlink(link)), self.targets[link])
         self.assertTrue((self.apps / "WorkLog.app" / "Contents" / "MacOS" / "WorkLog").exists())
         again = self.install("--prefix", str(self.apps))
         self.assertEqual(again.returncode, 0, again.stderr)
         self.assertNotIn("Previous link target", again.stdout)
         for link in self.links:
-            self.assertEqual(Path(os.readlink(link)), SKILL_ROOT)
+            self.assertEqual(Path(os.readlink(link)), self.targets[link])
 
     def test_a_link_pointing_elsewhere_is_replaced_and_its_target_printed(self):
         for i, link in enumerate(self.links):
-            link.parent.mkdir(parents=True)
+            link.parent.mkdir(parents=True, exist_ok=True)
             link.symlink_to(self.tmp / f"old-{i}")
         r = self.install("--prefix", str(self.apps))
         self.assertEqual(r.returncode, 0, r.stderr)
         for i, link in enumerate(self.links):
-            self.assertEqual(Path(os.readlink(link)), SKILL_ROOT)
+            self.assertEqual(Path(os.readlink(link)), self.targets[link])
             self.assertIn(f"Previous link target: {self.tmp / f'old-{i}'}", r.stdout)
 
     def test_a_real_directory_at_either_link_is_refused_before_any_change(self):
