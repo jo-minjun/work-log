@@ -23,7 +23,7 @@ from logformat import FORMATS, LogFormat
 from secretscan import secret_fields, secret_message
 from daysection import move_items
 from monthdoc import MonthDoc, day_heading, new_doc, parse, serialize, touch
-from state import DEFAULT_STATE_PATH, load_last, mark_complete, record_write
+from state import DEFAULT_STATE_PATH, collected_after_day_ended, load_last, mark_complete, record_write
 
 URL_PREFIXES = ("http://", "https://")
 PREVIOUS_MONTH_LOOKBACK_DAYS = 15
@@ -204,7 +204,7 @@ def cmd_day(args, cfg: Settings) -> int:
             doc.days[d] = section
         _write_doc(path, doc, now)
     record_write(args.state, now, warned=bool(payload.get("warnings")))
-    if not payload.get("warnings"):
+    if not payload.get("warnings") and collected_after_day_ended(args.state, d, now):
         mark_complete(args.state, d)
     print(path)
     return EXIT_OK

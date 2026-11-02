@@ -28,7 +28,7 @@ Collects Claude Code sessions and Slack activity one day at a time and **rebuild
 
 | Call | Days collected |
 |---|---|
-| `/work-log` (Codex: `$work-log`) | From the day after the last completed day through today. Only today on the first run, or when today is already completed |
+| `/work-log` (Codex: `$work-log`) | From the day after the last completed day through today. Only today on the first run, or when today is already completed. A day is completed only by a run that started after the day ended, so the next run collects the previous run's day again and picks up what happened after it |
 | `/work-log 2026-10-22` | That day only |
 | `/work-log 2026-10-23..2026-10-29` | The range, both ends included |
 
@@ -203,7 +203,7 @@ python3 <scripts>/write_day.py day --json <payload folder>/day-2026-10-29.json
 - It prints the month file path. If it also prints `legacy candidates section removed from <file>` on stderr, include that line in the report.
 - `source` is one of `claude_session`, `slack`, `decision`, `needs_confirmation`. `feature`, `location`, `links` and `warnings` are optional. Inside a project, items are written in subsections by source, in that order.
 - Call it for a day with no activity too, with `"projects": []`. That removes any old section and advances the last completed day.
-- A day counts as completed only when `warnings` is empty.
+- A day counts as completed only when `warnings` is empty and this run started after the day ended. `state.py dates` records the run's start time for this.
 
 **4-7. When `write_day.py day` fails**
 

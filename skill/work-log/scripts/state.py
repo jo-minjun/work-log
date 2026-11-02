@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compute the list of dates to collect and manage the last completed date (state.json).
 
-Usage: state.py dates [ARG]   no ARG | YYYY-MM-DD | YYYY-MM-DD..YYYY-MM-DD
+Usage: state.py dates [ARG]   no ARG | YYYY-MM-DD | YYYY-MM-DD..YYYY-MM-DD; records the current time in lastRunStartedAt
        state.py record-write   record the current time in lastWrittenAt
 
 Exit codes: 0 success, 2 input error
@@ -57,6 +57,23 @@ def load_last_written(path: Path) -> datetime | None:
 
 def load_last_warned(path: Path) -> datetime | None:
     return _load_time(path, "lastWarnedAt")
+
+
+def load_run_started(path: Path) -> datetime | None:
+    return _load_time(path, "lastRunStartedAt")
+
+
+def record_run_start(path: Path, now: datetime) -> None:
+    data = _read_state(path)
+    data["lastRunStartedAt"] = now.isoformat(timespec="seconds")
+    _write_state(path, data)
+
+
+def collected_after_day_ended(path: Path, d: date, now: datetime) -> bool:
+    # Activity after a run started is not in what it wrote, so the day stays open until a later day's run rewrites it.
+    # Without a recorded start (write_day.py called on its own), the write time stands in for it.
+    started = load_run_started(path) or now
+    return started.date() > d
 
 
 def mark_complete(path: Path, d: date) -> None:
@@ -128,8 +145,9 @@ def main() -> int:
         return EXIT_OK
 
     try:
-        today = datetime.now(load_settings(args.settings).tz).date()
-        result = resolve_dates(args.arg.strip(), load_last(args.state), today)
+        now = datetime.now(load_settings(args.settings).tz)
+        result = resolve_dates(args.arg.strip(), load_last(args.state), now.date())
+        record_run_start(args.state, now)
     except (ValueError, SettingsError) as e:
         print(e, file=sys.stderr)
         return EXIT_INPUT

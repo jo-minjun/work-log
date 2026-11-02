@@ -13,7 +13,8 @@ from helpers import SCRIPTS, cli_env, make_settings, write_settings_json
 
 from settings import load_settings
 from write_day import month_file
-from state import load_last, load_last_written, mark_complete, record_write, resolve_dates
+from state import (collected_after_day_ended, load_last, load_last_written, load_run_started, mark_complete,
+                   record_run_start, record_write, resolve_dates)
 
 TODAY = date(2026, 10, 29)
 
@@ -56,6 +57,7 @@ class ResolveDatesTest(unittest.TestCase):
         )
         self.assertEqual(ok.returncode, 0)
         self.assertEqual(ok.stdout.split(), ["2026-10-27", "2026-10-28"])
+        self.assertIsNotNone(load_run_started(base / "home" / "state.json"))
         bad = subprocess.run(
             [sys.executable, str(SCRIPTS / "state.py"), "dates", "nope"],
             capture_output=True, text=True, env=env,
@@ -119,6 +121,21 @@ class MarkCompleteTest(unittest.TestCase):
 
     def test_load_last_missing_file(self):
         self.assertIsNone(load_last(self.path))
+
+    def test_day_is_collected_only_by_a_run_that_started_after_it(self):
+        kst = ZoneInfo("Asia/Seoul")
+        sunday = date(2026, 11, 1)
+        monday_write = datetime(2026, 11, 2, 0, 3, tzinfo=kst)
+        record_run_start(self.path, datetime(2026, 11, 1, 23, 58, tzinfo=kst))
+        self.assertFalse(collected_after_day_ended(self.path, sunday, monday_write), "run crossed midnight")
+        record_run_start(self.path, datetime(2026, 11, 2, 10, 0, tzinfo=kst))
+        self.assertTrue(collected_after_day_ended(self.path, sunday, monday_write))
+        self.assertFalse(collected_after_day_ended(self.path, date(2026, 11, 2), monday_write))
+
+    def test_without_a_recorded_start_the_write_time_decides(self):
+        now = datetime(2026, 11, 2, 10, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+        self.assertTrue(collected_after_day_ended(self.path, date(2026, 11, 1), now))
+        self.assertFalse(collected_after_day_ended(self.path, date(2026, 11, 2), now))
 
 
 class SettingsTest(unittest.TestCase):

@@ -178,6 +178,17 @@ class DayCommandTest(WriteDayBase):
         self.write_day(payload("2026-10-29"))
         self.assertEqual(load_last_warned(self.state), warned)
 
+    def test_day_written_by_a_run_started_that_day_stays_open(self):
+        self.state.write_text(json.dumps({"lastCompletedDate": "2026-10-27", "lastRunStartedAt": "2026-10-28T22:00:00+09:00"}),
+                              encoding="utf-8")
+        self.write_day(payload("2026-10-28"))
+        self.assertEqual(load_last(self.state), date(2026, 10, 27))
+        self.state.write_text(json.dumps({"lastCompletedDate": "2026-10-27", "lastRunStartedAt": "2026-10-29T10:00:00+09:00"}),
+                              encoding="utf-8")
+        self.write_day(payload("2026-10-28"))
+        self.write_day(payload("2026-10-29"))
+        self.assertEqual(load_last(self.state), date(2026, 10, 28))
+
     def test_marks_state_only_without_warnings(self):
         self.write_day(payload("2026-10-28", warnings=["Slack 수집 실패: x"]))
         self.assertIsNone(load_last(self.state))

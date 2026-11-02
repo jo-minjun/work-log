@@ -221,7 +221,9 @@ One line per run, appended by `run.sh` and, for a few cases, the app:
 
 ### 5.4 state.json
 
-Same content as today (`lastCompletedDate`, `lastWrittenAt`). It moves here from the skill folder.
+Same content as today (`lastCompletedDate`, `lastWrittenAt`), plus `lastRunStartedAt` (written by `state.py dates`). It moves here from the skill folder.
+
+- `write_day.py day` marks a day completed only when it has no warnings and the run started after the day ended. A run that started during the day therefore leaves the day open, and the next run collects it again with what happened after the start.
 
 ### 5.5 claude-rate-limits.json
 
